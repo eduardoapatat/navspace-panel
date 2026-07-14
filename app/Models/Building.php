@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Concerns\Filterable;
 use Database\Factories\BuildingFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -50,27 +49,23 @@ class Building extends Model
     /**
      * Absolute URL of the building photo, derived from the stored relative path
      * so it follows the current request host (local domain or LAN IP).
-     *
-     * @return Attribute<string|null, never>
      */
-    protected function imageUrl(): Attribute
+    public function getImageUrlAttribute(): ?string
     {
-        return Attribute::get(fn (): ?string => $this->image_path === null
+        return $this->image_path === null
             ? null
-            : url('storage/'.$this->image_path));
+            : url('storage/'.$this->image_path);
     }
 
     /**
      * Absolute URL of the .glb model, derived from the stored relative path so it
      * follows the current request host (local domain or LAN IP).
-     *
-     * @return Attribute<string|null, never>
      */
-    protected function modelUrl(): Attribute
+    public function getModelUrlAttribute(): ?string
     {
-        return Attribute::get(fn (): ?string => $this->model_path === null
+        return $this->model_path === null
             ? null
-            : url('storage/'.$this->model_path));
+            : url('storage/'.$this->model_path);
     }
 
     /**

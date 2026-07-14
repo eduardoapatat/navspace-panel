@@ -49,7 +49,13 @@ class GlbInspector
         }
 
         // First chunk: length (4), type (4, JSON = 0x4E4F534A), then the JSON body.
-        $chunkLength = unpack('V', substr($bytes, 12, 4))[1];
+        $header = unpack('V', substr($bytes, 12, 4));
+
+        if ($header === false) {
+            return null;
+        }
+
+        $chunkLength = $header[1];
         $chunkType = substr($bytes, 16, 4);
 
         if ($chunkType !== 'JSON' || strlen($bytes) < 20 + $chunkLength) {

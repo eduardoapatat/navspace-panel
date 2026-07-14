@@ -78,9 +78,13 @@ class BuildingController extends Controller
         }
 
         if ($request->hasFile('model')) {
-            $data['model_path'] = $request->file('model')->store('models', 'public');
-            // Auto-detect the exporter to fix Unity's 180° flip of Blender glb.
-            $data['model_yaw'] = GlbInspector::detectModelYaw($data['model_path']);
+            $modelPath = $request->file('model')->store('models', 'public');
+
+            if ($modelPath !== false) {
+                $data['model_path'] = $modelPath;
+                // Auto-detect the exporter to fix Unity's 180° flip of Blender glb.
+                $data['model_yaw'] = GlbInspector::detectModelYaw($modelPath);
+            }
         }
 
         Building::create($data);
@@ -131,9 +135,13 @@ class BuildingController extends Controller
 
         if ($request->hasFile('model')) {
             $this->deleteStoredFile($building->model_path);
-            $data['model_path'] = $request->file('model')->store('models', 'public');
-            // Auto-detect the exporter to fix Unity's 180° flip of Blender glb.
-            $data['model_yaw'] = GlbInspector::detectModelYaw($data['model_path']);
+            $modelPath = $request->file('model')->store('models', 'public');
+
+            if ($modelPath !== false) {
+                $data['model_path'] = $modelPath;
+                // Auto-detect the exporter to fix Unity's 180° flip of Blender glb.
+                $data['model_yaw'] = GlbInspector::detectModelYaw($modelPath);
+            }
         } elseif ($request->boolean('remove_model')) {
             $this->deleteStoredFile($building->model_path);
             $data['model_path'] = null;
