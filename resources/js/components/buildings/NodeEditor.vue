@@ -1,22 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import {
-    computed,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    ref,
-    shallowRef,
-    watch,
-} from 'vue';
-import * as THREE from 'three';
-import CameraControls from 'camera-controls';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-
-// camera-controls needs a subset of THREE injected once.
-CameraControls.install({ THREE });
-import {
     Check,
     Compass,
     Copy,
@@ -26,6 +10,21 @@ import {
     Trash2,
     Waypoints,
 } from '@lucide/vue';
+import CameraControls from 'camera-controls';
+import * as THREE from 'three';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    shallowRef,
+    watch,
+} from 'vue';
+import type { Building } from '@/components/buildings/building';
+import NodeGroupsPanel from '@/components/buildings/NodeGroupsPanel.vue';
 import {
     Accordion,
     AccordionContent,
@@ -48,8 +47,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import NodeGroupsPanel from '@/components/buildings/NodeGroupsPanel.vue';
-import type { Building } from '@/components/buildings/building';
+
+// camera-controls needs a subset of THREE injected once.
+CameraControls.install({ THREE });
 
 interface Props {
     building: Building;
@@ -115,6 +115,7 @@ watch(selectedId, async (id) => {
     if (id === null) {
         return;
     }
+
     await nextTick();
     cardEls.get(id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 });
@@ -149,6 +150,7 @@ const groupedNodes = computed(() => {
         const nodes = localNodes.value.filter(
             (n) => n.node_group_id === group.id,
         );
+
         if (nodes.length) {
             sections.push({ id: group.id, name: group.name, nodes });
         }
@@ -160,6 +162,7 @@ const groupedNodes = computed(() => {
             n.node_group_id === null ||
             !nodeGroups.value.some((g) => g.id === n.node_group_id),
     );
+
     if (loose.length) {
         sections.push({ id: null, name: 'Sin grupo', nodes: loose });
     }
@@ -237,9 +240,11 @@ const EYE_CURSOR =
 // Set the canvas cursor for the current interaction.
 function setCursor(kind: 'default' | 'orbit' | 'pan' | 'pointer'): void {
     const canvas = renderer.value?.domElement;
+
     if (!canvas) {
         return;
     }
+
     if (kind === 'orbit') {
         canvas.style.cursor = EYE_CURSOR;
     } else if (kind === 'pan') {
@@ -306,6 +311,7 @@ watch(
         if (!scene.value) {
             return;
         }
+
         // Params changed → unsaved and recompute the preview.
         dirty.value = true;
         computeGraph();
@@ -317,6 +323,7 @@ watch(
 watch(
     () => {
         const n = initialNode.value;
+
         return n
             ? [n.localId, n.position_x, n.position_y, n.position_z, n.heading]
             : null;
@@ -344,6 +351,7 @@ const initialCount = computed(
 
 function initScene(): void {
     const host = canvasHost.value;
+
     if (!host) {
         return;
     }
@@ -411,6 +419,7 @@ function initScene(): void {
     transform.value.addEventListener('dragging-changed', (event) => {
         // Freeze the camera while dragging a node.
         orbit.value!.enabled = !event.value;
+
         // Sync the reactive state (which re-renders the whole node list) only
         // when the drag ends, not on every frame — that per-frame update was
         // what made dragging feel laggy. The mesh itself moves smoothly because
@@ -445,9 +454,11 @@ function onDoubleClick(event: MouseEvent): void {
     if (!modelRoot || !orbit.value) {
         return;
     }
+
     updatePointer(event as unknown as PointerEvent);
     raycaster.setFromCamera(pointer, camera.value!);
     const hit = raycaster.intersectObject(modelRoot, true)[0];
+
     if (hit) {
         // Orbit around the clicked point without moving the camera.
         orbit.value.setOrbitPoint(hit.point.x, hit.point.y, hit.point.z);
@@ -476,6 +487,7 @@ function applyAltMouseButtons(): void {
 function loadModel(): void {
     if (!props.modelUrl) {
         loading.value = false;
+
         return;
     }
 
@@ -520,6 +532,7 @@ function buildHeadingArrow(): void {
     if (!scene.value) {
         return;
     }
+
     if (headingArrow) {
         scene.value.remove(headingArrow);
         headingArrow = null;
@@ -585,8 +598,10 @@ function updateHeadingArrow(): void {
     }
 
     const node = initialNode.value;
+
     if (!node || !showHeadingArrow.value) {
         headingArrow.visible = false;
+
         return;
     }
 
@@ -606,6 +621,7 @@ function frameToModel(transition: boolean): void {
     if (!orbit.value) {
         return;
     }
+
     const offset = modelSize * 0.6;
     orbit.value.setLookAt(
         modelCenter.x + offset,
@@ -627,9 +643,11 @@ function resetView(): void {
 // Move the camera close to a node, keeping the current viewing direction.
 function focusNode(id: number): void {
     const mesh = nodeMeshes.get(id);
+
     if (!mesh || !camera.value || !orbit.value) {
         return;
     }
+
     selectNode(id);
 
     const target = mesh.position;
@@ -677,9 +695,11 @@ function pivotOnCursor(event: PointerEvent): void {
     if (!modelRoot || !orbit.value || !camera.value) {
         return;
     }
+
     updatePointer(event);
     raycaster.setFromCamera(pointer, camera.value);
     const hit = raycaster.intersectObject(modelRoot, true)[0];
+
     if (hit) {
         orbit.value.setOrbitPoint(hit.point.x, hit.point.y, hit.point.z);
     }
@@ -719,6 +739,7 @@ function onPointerUp(event: PointerEvent): void {
     // so left-clicking the model never spawns nodes by accident.
     const spheres = [...nodeMeshes.values()];
     const hitSphere = raycaster.intersectObjects(spheres, false)[0];
+
     if (hitSphere) {
         selectNode(hitSphere.object.userData.localId as number);
     } else {
@@ -732,6 +753,7 @@ function onPointerHover(event: PointerEvent): void {
     if (!camera.value || transform.value?.dragging) {
         return;
     }
+
     // Don't fight the orbit/pan cursors set elsewhere while a button is held.
     if (event.buttons !== 0) {
         return;
@@ -747,6 +769,7 @@ function onPointerHover(event: PointerEvent): void {
         hoveredId.value = id;
         refreshColors();
     }
+
     setCursor(id !== null ? 'pointer' : 'default');
 }
 
@@ -766,9 +789,11 @@ function onContextMenu(event: MouseEvent): void {
     const moved =
         Math.abs(event.clientX - pointerDownAt.x) +
         Math.abs(event.clientY - pointerDownAt.y);
+
     if (moved > 4 || !modelRoot || !camera.value) {
         return;
     }
+
     updatePointer(event as unknown as PointerEvent);
     raycaster.setFromCamera(pointer, camera.value);
 
@@ -782,20 +807,25 @@ function onContextMenu(event: MouseEvent): void {
     // model surface (create a node there).
     const spheres = [...nodeMeshes.values()];
     const hitSphere = raycaster.intersectObjects(spheres, false)[0];
+
     if (hitSphere) {
         contextMenu.value = {
             ...menuPos,
             kind: 'node',
             nodeId: hitSphere.object.userData.localId as number,
         };
+
         return;
     }
 
     const hit = raycaster.intersectObject(modelRoot, true)[0];
+
     if (!hit) {
         contextMenu.value = null;
+
         return;
     }
+
     pendingPoint = hit.point.clone();
     contextMenu.value = { ...menuPos, kind: 'create', nodeId: null };
 }
@@ -805,9 +835,11 @@ function onContextMenu(event: MouseEvent): void {
 // automatic node counter as its name (no "(copia) (copia)…" chains).
 function duplicateNode(id: number): void {
     const node = localNodes.value.find((n) => n.localId === id);
+
     if (!node) {
         return;
     }
+
     const offset = Math.max(modelSize * 0.02, 0.1);
     const copy: LocalNode = {
         localId: nextTempId--,
@@ -838,6 +870,7 @@ function createNodeFromMenu(): void {
     if (pendingPoint) {
         createNode(pendingPoint);
     }
+
     contextMenu.value = null;
 }
 
@@ -865,6 +898,7 @@ function segmentBlocked(a: THREE.Vector3, b: THREE.Vector3): boolean {
     if (!modelRoot) {
         return false;
     }
+
     const direction = b.clone().sub(a);
     const distance = direction.length();
     direction.normalize();
@@ -877,15 +911,18 @@ function segmentBlocked(a: THREE.Vector3, b: THREE.Vector3): boolean {
             .normalize()
             .multiplyScalar(graphParams.value.thickRadius);
         const offsets = [new THREE.Vector3(), side, side.clone().negate()];
+
         return offsets.some((offset) => {
             graphRaycaster.set(a.clone().add(offset), direction);
             graphRaycaster.far = distance;
+
             return graphRaycaster.intersectObject(modelRoot!, true).length > 0;
         });
     }
 
     graphRaycaster.set(a, direction);
     graphRaycaster.far = distance;
+
     return graphRaycaster.intersectObject(modelRoot, true).length > 0;
 }
 
@@ -946,11 +983,13 @@ function computeGraph(): void {
             if (maxDistance > 0 && a.pos.distanceTo(b.pos) > maxDistance) {
                 continue;
             }
+
             // Filter 2: Y limit — absolute height difference (0 means unlimited).
             // Keeps floors apart while still linking nearby same-level nodes.
             if (maxY > 0 && yGap > maxY) {
                 continue;
             }
+
             // Filter 3: obstacle raycast against the model.
             if (graphParams.value.checkWalls && segmentBlocked(a.pos, b.pos)) {
                 continue;
@@ -1032,15 +1071,18 @@ function clearGraph(): void {
         });
         graphGroup = null;
     }
+
     graphStats.value = null;
 }
 
 function selectNode(id: number): void {
     selectedId.value = id;
     const mesh = nodeMeshes.get(id);
+
     if (mesh) {
         transform.value!.attach(mesh);
     }
+
     refreshColors();
 }
 
@@ -1055,8 +1097,10 @@ function onGizmoMove(): void {
     if (selectedId.value === null) {
         return;
     }
+
     const mesh = nodeMeshes.get(selectedId.value);
     const node = localNodes.value.find((n) => n.localId === selectedId.value);
+
     if (mesh && node) {
         node.position_x = mesh.position.x;
         node.position_y = mesh.position.y;
@@ -1073,6 +1117,7 @@ function refreshColors(): void {
         const material = mesh.material as THREE.MeshStandardMaterial;
 
         let base: number;
+
         if (id === selectedId.value) {
             base = SELECTED_COLOR;
         } else if (mesh.userData.isInitial) {
@@ -1082,6 +1127,7 @@ function refreshColors(): void {
         }
 
         material.color.setHex(base);
+
         // Lighten toward white on hover, keeping the state's own hue.
         if (id === hoveredId.value) {
             material.color.lerp(new THREE.Color(0xffffff), 0.4);
@@ -1105,10 +1151,13 @@ function renderNodes(): void {
     for (const mesh of nodeMeshes.values()) {
         scene.value!.remove(mesh);
     }
+
     nodeMeshes.clear();
+
     for (const node of localNodes.value) {
         addSphere(node);
     }
+
     refreshColors();
 }
 
@@ -1121,11 +1170,14 @@ function setNodeAxis(
     if (Number.isNaN(value)) {
         return;
     }
+
     const node = localNodes.value.find((n) => n.localId === id);
     const mesh = nodeMeshes.get(id);
+
     if (!node || !mesh) {
         return;
     }
+
     node[axis] = value;
     mesh.position.set(node.position_x, node.position_y, node.position_z);
     markDirty();
@@ -1137,9 +1189,11 @@ const NO_GROUP = 'none';
 // Assign the node to a group (NO_GROUP sentinel = ungrouped).
 function setNodeGroup(id: number, value: string): void {
     const node = localNodes.value.find((n) => n.localId === id);
+
     if (!node) {
         return;
     }
+
     node.node_group_id = value === NO_GROUP ? null : Number(value);
     markDirty();
 }
@@ -1147,17 +1201,22 @@ function setNodeGroup(id: number, value: string): void {
 // Only one node may be the building's initial (calibration) anchor.
 function toggleInitial(id: number): void {
     const node = localNodes.value.find((n) => n.localId === id);
+
     if (!node) {
         return;
     }
+
     const becomingInitial = !node.is_initial;
+
     for (const other of localNodes.value) {
         other.is_initial = other.localId === id ? becomingInitial : false;
         const mesh = nodeMeshes.get(other.localId);
+
         if (mesh) {
             mesh.userData.isInitial = other.is_initial;
         }
     }
+
     refreshColors();
     markDirty();
 }
@@ -1165,13 +1224,16 @@ function toggleInitial(id: number): void {
 function deleteNode(id: number): void {
     localNodes.value = localNodes.value.filter((n) => n.localId !== id);
     const mesh = nodeMeshes.get(id);
+
     if (mesh) {
         scene.value!.remove(mesh);
         nodeMeshes.delete(id);
     }
+
     if (selectedId.value === id) {
         deselect();
     }
+
     markDirty();
 }
 
@@ -1248,9 +1310,11 @@ function saveNodes(): void {
 
 function onResize(): void {
     const host = canvasHost.value;
+
     if (!host || !camera.value || !renderer.value) {
         return;
     }
+
     camera.value.aspect = host.clientWidth / host.clientHeight;
     camera.value.updateProjectionMatrix();
     // updateStyle=false so the canvas keeps its CSS-driven 100% size.
@@ -1261,10 +1325,13 @@ function onResize(): void {
 // fire (e.g. Delete inside a coordinate input should not remove the node).
 function isTypingInField(event: KeyboardEvent): boolean {
     const target = event.target as HTMLElement | null;
+
     if (!target) {
         return false;
     }
+
     const tag = target.tagName;
+
     return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
 }
 

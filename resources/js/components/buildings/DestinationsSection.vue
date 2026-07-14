@@ -61,11 +61,13 @@ const nodeOptions = computed(() =>
             if (selectedGroupId.value === NO_GROUP) {
                 return node.node_group_id === null;
             }
+
             return node.node_group_id === Number(selectedGroupId.value);
         })
         .map((node) => {
             const coords = `(${node.position_x.toFixed(1)}, ${node.position_y.toFixed(1)}, ${node.position_z.toFixed(1)})`;
             const name = node.label ? `${node.label} · ${coords}` : coords;
+
             return {
                 id: node.id,
                 label: name,
@@ -79,7 +81,9 @@ function groupOfNode(nodeId: number | null): string {
     if (nodeId === null) {
         return NO_GROUP;
     }
+
     const node = (props.building.nodes ?? []).find((n) => n.id === nodeId);
+
     return node?.node_group_id != null ? String(node.node_group_id) : NO_GROUP;
 }
 
@@ -181,6 +185,7 @@ function onFileChange(event: Event): void {
     scheduleFile.value = file;
     form.schedule_file = file;
     schedulePreview.value = file ? URL.createObjectURL(file) : null;
+
     if (file) {
         form.remove_schedule_file = false;
     }
@@ -193,6 +198,7 @@ function onPhotoChange(event: Event): void {
     const file = input.files?.[0] ?? null;
     form.responsible_photo = file;
     photoPreview.value = file ? URL.createObjectURL(file) : null;
+
     if (file) {
         form.remove_responsible_photo = false;
     }
@@ -209,6 +215,7 @@ function removePhoto(): void {
 // chosen group (avoids keeping a node hidden from the narrowed list).
 function onGroupChange(value: string): void {
     selectedGroupId.value = value;
+
     if (form.node_id !== null && groupOfNode(form.node_id) !== value) {
         form.node_id = null;
     }

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import type { PaginationState, SortingState } from '@tanstack/vue-table';
+import { ArrowDownAZ, ArrowUpAZ, Search, X } from '@lucide/vue';
 import {
     getCoreRowModel,
-    useVueTable,
-    type ColumnDef,
+    useVueTable
+    
 } from '@tanstack/vue-table';
-import { ArrowDownAZ, ArrowUpAZ, Search, X } from '@lucide/vue';
+import type { PaginationState, SortingState } from '@tanstack/vue-table';
+import type {ColumnDef} from '@tanstack/vue-table';
 import { computed, ref } from 'vue';
-import BuildingCard from '@/components/buildings/BuildingCard.vue';
 import type { Building } from '@/components/buildings/building';
+import BuildingCard from '@/components/buildings/BuildingCard.vue';
 import DataTablePagination from '@/components/data-table/DataTablePagination.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,7 @@ function fetchWithParams(): void {
     };
 
     const trimmed = search.value.trim();
+
     if (trimmed.length > 0) {
         params.search = trimmed;
     }

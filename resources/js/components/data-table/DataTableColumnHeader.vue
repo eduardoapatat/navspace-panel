@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Column } from '@tanstack/vue-table';
 import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff } from '@lucide/vue';
+import type { Column } from '@tanstack/vue-table';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,

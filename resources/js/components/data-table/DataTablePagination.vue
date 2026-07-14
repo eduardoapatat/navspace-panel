@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Table } from '@tanstack/vue-table';
 import {
     ChevronLeft,
     ChevronRight,
     ChevronsLeft,
     ChevronsRight,
 } from '@lucide/vue';
+import type { Table } from '@tanstack/vue-table';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import {

@@ -28,6 +28,7 @@ const createdAt = computed(() => {
     if (!props.building.created_at) {
         return '';
     }
+
     return new Date(props.building.created_at).toLocaleDateString('es-CL', {
         day: 'numeric',
         month: 'short',

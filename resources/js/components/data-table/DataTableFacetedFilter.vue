@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Column } from '@tanstack/vue-table';
 import { Check, PlusCircle } from '@lucide/vue';
+import type { Column } from '@tanstack/vue-table';
 import type { Component } from 'vue';
 import { computed } from 'vue';
 

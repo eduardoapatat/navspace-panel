@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Table } from '@tanstack/vue-table';
 import { X } from '@lucide/vue';
+import type { Table } from '@tanstack/vue-table';
 import { computed } from 'vue';
 import type { Building } from '@/components/buildings/building';
 import DataTableSortList from '@/components/data-table/DataTableSortList.vue';

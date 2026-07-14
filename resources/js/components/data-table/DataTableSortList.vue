@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="TData">
-import type { SortDirection, Table } from '@tanstack/vue-table';
 import { ArrowDownUp } from '@lucide/vue';
+import type { SortDirection, Table } from '@tanstack/vue-table';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
