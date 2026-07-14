@@ -235,15 +235,16 @@ The full system spans two separate codebases:
 
 ## Responsibilities of this repository
 
-1. CRUD of Building, Floor, SpaceType, Destination, and Node from a web panel
-   (Inertia + Vue pages).
+1. CRUD of Building, Floor, SpaceType, Destination, Node, Person, and Schedule from a
+   web panel (Inertia + Vue pages). Floor/SpaceType/Destination/Schedule are managed
+   nested inside the Building detail (Show) page, not as standalone menu modules.
 2. REST API consumed by the Unity app, mainly to fetch destination info.
 3. A Three.js visual editor, embedded as a Vue component, where the admin loads the
    building `.glb` model and places navigation nodes by clicking on the model.
 
 ## Data model
 
-Five entities. Field names below are the agreed names for this project.
+Seven entities. Field names below are the agreed names for this project.
 
 ### Building
 
@@ -274,8 +275,10 @@ Five entities. Field names below are the agreed names for this project.
 - `node_id` (FK, nullable)
 - `display_name`
 - `description`
-- `schedule`
-- `responsible`
+
+Note: the old `schedule` and `responsible` string fields were removed and replaced
+by the `Schedule` and `Person` entities below (a destination `hasMany` schedules and
+`hasOne` responsible).
 
 ### Node
 
@@ -286,18 +289,56 @@ Five entities. Field names below are the agreed names for this project.
 - `position_z`
 - `is_initial` (boolean)
 
+### Person
+
+Responsible people and teachers, a single reusable entity. The same person can be
+responsible for an office and also teach in several academic rooms.
+
+- `id`
+- `name`
+- `email` (nullable)
+- `phone` (nullable)
+- `office_destination_id` (FK → destinations, nullable) — the office they run.
+  Nullable because a teacher who only lectures has no office.
+
+### Schedule
+
+A schedule block of a destination. Several blocks make a full schedule; a lunch break
+is just the gap between two blocks. `days` is a JSON array so one row covers several
+days when the time range is the same.
+
+- `id`
+- `destination_id` (FK) — the schedule always hangs off the destination (uniform API).
+- `type` — enum `ScheduleType` { Attention, Academic }. A fixed system value, NOT
+  creatable, independent from SpaceType (which is free/modular). The admin picks it
+  from a fixed select; do not derive behavior from the SpaceType name.
+- `days` — JSON array, e.g. `["mon","wed","fri"]`
+- `start_time`, `end_time`
+- `person_id` (FK → people, nullable) — attendant (attention) or teacher (academic)
+- `subject` (nullable), `semester` (nullable, free text like `2025-1`) — academic only
+
+The three cases: office = Attention + person (responsible); helper room = Attention +
+no person (open hours); academic room = Academic + teacher + subject + semester.
+
 ### Relationships
 
 ```
-Building    hasMany    Floor
-Building    hasMany    SpaceType
-Floor       hasMany    Node
-Floor       hasMany    Destination
-SpaceType   hasMany    Destination
-Destination belongsTo  Floor
-Destination belongsTo  SpaceType
-Destination belongsTo  Node        (nullable)
-Node        belongsTo  Floor
+Building    hasMany       Floor
+Building    hasMany       SpaceType
+Building    hasManyThrough Destination (via Floor)
+Floor       hasMany       Node
+Floor       hasMany       Destination
+SpaceType   hasMany       Destination
+Destination belongsTo     Floor
+Destination belongsTo     SpaceType
+Destination belongsTo     Node        (nullable)
+Destination hasMany       Schedule
+Destination hasOne        Person       (responsible, via office_destination_id)
+Node        belongsTo     Floor
+Schedule    belongsTo     Destination
+Schedule    belongsTo     Person       (nullable)
+Person      belongsTo     Destination  (office, nullable, via office_destination_id)
+Person      hasMany       Schedule
 ```
 
 ## Architecture decisions (do not change without asking)
@@ -322,6 +363,17 @@ Node        belongsTo  Floor
   exist without an associated node. Once the Three.js editor is operational the node
   gets assigned. Do not make it required.
 
+- **`Schedule.type` is a fixed enum, not derived from SpaceType.** SpaceType is
+  admin-created and free (its name can be anything), so it must NOT drive system
+  behavior. Whether a schedule is `attention` or `academic` is a fixed system rule the
+  admin picks from a select, so the app and Unity always know how to read it. Keep them
+  independent.
+
+- **Schedule hangs off Destination, never off Person.** Even for offices (where the
+  hours are "the person's"), the schedule belongs to the destination and points to the
+  person via `person_id`. This keeps the Unity API uniform: always "give me the
+  schedules of this destination".
+
 ## Coordinate system (verify, this is delicate)
 
 The Three.js editor captures XYZ coordinates by clicking on the same `.glb` that Unity
@@ -334,11 +386,28 @@ Y component represents floor level.
 
 ## API contract for Unity
 
-### MVP (needed now)
+Public, unauthenticated endpoints in `routes/api.php`, consumed by the Unity app.
+All are already implemented (multi-space, see the multi-space vision below).
 
-- `GET /api/destinations/{id}` — returns the destination data the app shows on
-  arrival: `display_name`, `description`, `schedule`, `responsible`, and the
-  `space_type`. Use an Eloquent API Resource.
+### Implemented
+
+- `GET /api/buildings` — list of navigable spaces for the Unity space selector
+  (`id`, `name`, `address`, `model_url`). `BuildingResource`.
+- `GET /api/buildings/{id}` — a space with its `model_url`, `floors`,
+  `destinations` and `pathfinding_config` (the A* Point Graph parameters the
+  Unity app uses: `max_distance`, `thick_radius`, `check_walls`; defaults to
+  `{max_distance:5, thick_radius:0, check_walls:true}` when unset). Saved from
+  the 3D editor via `PUT /buildings/{building}/pathfinding`.
+  `BuildingDetailResource`.
+- `GET /api/destinations/{id}` — destination detail shown on arrival:
+  `display_name`, `description`, `space_type`, `responsible` (Person object or null),
+  `schedules` (array of blocks: `type`, `days`, `start_time`, `end_time`, `subject`,
+  `semester`, `person`), and `node` (position, only when set). `DestinationResource`.
+
+Note: NavSpace is a generic multi-space CMS, not DICI-only. The panel is where admins
+register any navigable space (building, apartment, house...) with its model and nodes,
+and Unity has a selector that dynamically loads the chosen one. That is why the
+buildings list/detail endpoints are first-class, not "future".
 
 ### Future (once the node editor is ready)
 
