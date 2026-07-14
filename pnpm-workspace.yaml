@@ -1,5 +1,8 @@
 packages:
   - '.'
 
+allowBuilds:
+  sharp: true
+
 publicHoistPattern:
   - '@inertiajs/core'
