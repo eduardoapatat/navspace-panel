@@ -2,10 +2,10 @@
 
 use App\Enums\ScheduleType;
 use App\Models\Destination;
-use Database\Seeders\DiciSeeder;
+use Database\Seeders\DiciBuildingSeeder;
 
 it('returns the destination detail shown by the Unity app', function () {
-    $this->seed(DiciSeeder::class);
+    $this->seed(DiciBuildingSeeder::class);
     $destination = Destination::where('display_name', 'Licancabur')->first();
 
     $response = $this->getJson("/api/destinations/{$destination->id}");
@@ -13,7 +13,7 @@ it('returns the destination detail shown by the Unity app', function () {
     $response->assertOk()
         ->assertJsonPath('data.display_name', 'Licancabur')
         ->assertJsonPath('data.space_type.name', 'Salas')
-        ->assertJsonPath('data.node.position_z', 6.155);
+        ->assertJsonPath('data.node.position_z', 6.3784238389144);
 });
 
 it('returns the text schedule and responsible for an attention destination', function () {

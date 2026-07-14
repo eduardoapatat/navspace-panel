@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Building;
-use Database\Seeders\DiciSeeder;
+use Database\Seeders\DiciBuildingSeeder;
 
 it('lists every building for the Unity selector', function () {
     Building::factory()->count(3)->create();
@@ -18,15 +18,15 @@ it('lists every building for the Unity selector', function () {
 });
 
 it('returns a building with its nodes, groups and destinations', function () {
-    $this->seed(DiciSeeder::class);
-    $building = Building::where('name', 'DICI')->first();
+    $this->seed(DiciBuildingSeeder::class);
+    $building = Building::where('name', 'Departamento Informática')->first();
 
     $response = $this->getJson("/api/buildings/{$building->id}");
 
     $response->assertOk()
-        ->assertJsonPath('data.name', 'DICI')
-        ->assertJsonCount(1, 'data.node_groups')
-        ->assertJsonCount(2, 'data.nodes')
-        ->assertJsonCount(2, 'data.destinations')
+        ->assertJsonPath('data.name', 'Departamento Informática')
+        ->assertJsonCount(4, 'data.node_groups')
+        ->assertJsonCount(115, 'data.nodes')
+        ->assertJsonCount(9, 'data.destinations')
         ->assertJsonPath('data.destinations.0.display_name', 'Licancabur');
 });
