@@ -30,7 +30,7 @@ const { verify, isLoading, error, isSupported } = usePasskeyVerify({
           }
         : {}),
     onSuccess: (response) => {
-        router.visit(response.redirect ?? '/dashboard');
+        router.visit(response.redirect ?? '/buildings');
     },
 });
 </script>
@@ -49,8 +49,9 @@ const { verify, isLoading, error, isSupported } = usePasskeyVerify({
                 <KeyRound v-else class="h-4 w-4" />
                 {{
                     isLoading
-                        ? (props.loadingLabel ?? 'Authenticating...')
-                        : (props.label ?? 'Sign in with a passkey')
+                        ? (props.loadingLabel ?? 'Accediendo...')
+                        : (props.label ??
+                          'Iniciar sesión con una llave de acceso')
                 }}
             </Button>
 
@@ -65,7 +66,9 @@ const { verify, isLoading, error, isSupported } = usePasskeyVerify({
             </div>
             <div class="relative flex justify-center text-xs uppercase">
                 <span class="bg-background px-2 text-muted-foreground">
-                    {{ props.separator ?? 'Or continue with email' }}
+                    {{
+                        props.separator ?? 'O continuar con correo electrónico'
+                    }}
                 </span>
             </div>
         </div>
