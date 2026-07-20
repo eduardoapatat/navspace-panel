@@ -15,12 +15,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Administrador NavSpace',
-            'email' => 'test@example.com',
-        ]);
+        // The administrator is created without the factory so seeding also works
+        // on installs without development dependencies, such as the Docker image,
+        // where Faker is not available. The password cast hashes it on save.
+        User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Administrador NavSpace',
+                'password' => 'password',
+                'email_verified_at' => now(),
+            ]
+        );
 
         $this->call(DiciBuildingSeeder::class);
     }
