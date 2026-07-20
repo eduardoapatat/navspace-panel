@@ -91,9 +91,8 @@ credenciales de acceso:
 | `test@example.com` | `password` |
 
 El primer arranque es el más lento porque compila las dependencias y los assets.
-De forma automática crea el archivo `.env`, genera la clave de la aplicación,
-crea la base de datos SQLite, ejecuta las migraciones y carga los datos de
-ejemplo del DICI.
+De forma automática genera la clave de la aplicación, crea la base de datos
+SQLite, ejecuta las migraciones y carga los datos de ejemplo del DICI.
 
 **Comandos útiles**
 
@@ -163,7 +162,7 @@ El resto son ajustes del framework que funcionan tal como vienen:
 ### Correo
 
 La recuperación de contraseña y la verificación de cuenta necesitan un servidor
-SMTP, que se define con las variables `MAIL_*` de `.env.docker`. Sirve cualquiera:
+SMTP, que se define con las variables `MAIL_*` del `.env`. Sirve cualquiera:
 Gmail, el del hosting o uno en la nube como Brevo, Resend o Mailgun.
 
 La plantilla trae el ejemplo de Gmail listo para completar con la cuenta y su
