@@ -10,10 +10,22 @@ services:
         environment:
             APP_NAME: NavSpace
             APP_ENV: production
+            # .env.example ships the English defaults, so the panel language is
+            # set here to match the one used in development.
+            APP_LOCALE: es
+            APP_FALLBACK_LOCALE: es
             APP_DEBUG: 'false'
             APP_URL: 'http://localhost:${APP_PORT:-8000}'
             DB_CONNECTION: sqlite
             DB_DATABASE: /app/database-data/database.sqlite
+            # Password resets and email verification are delivered to Mailpit,
+            # where they can be read from the browser. Point these at a real SMTP
+            # server to send actual email.
+            MAIL_MAILER: smtp
+            MAIL_HOST: mailpit
+            MAIL_PORT: 1025
+            MAIL_FROM_ADDRESS: no-reply@navspace.local
+            MAIL_FROM_NAME: NavSpace
             # Loads the DICI demo data on the first start.
             DB_SEED: 'true'
         volumes:
@@ -38,6 +50,21 @@ services:
             timeout: 5s
             start_period: 60s
             retries: 3
+
+    # Catches the outgoing mail so password resets and email verification can be
+    # tested without a real SMTP account. Replace it in production.
+    mailpit:
+        image: axllent/mailpit:latest
+        container_name: navspace-mailpit
+        restart: unless-stopped
+        ports:
+            - '${MAILPIT_PORT:-8025}:8025'
+        mem_limit: 256m
+        logging:
+            driver: json-file
+            options:
+                max-size: 10m
+                max-file: '3'
 
 volumes:
     navspace-database:

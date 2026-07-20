@@ -100,12 +100,34 @@ docker compose down -v        # detener y borrar la base de datos y los modelos
 
 **Configuración**
 
-| Variable    | Por defecto | Descripción                                     |
-| ----------- | ----------- | ----------------------------------------------- |
-| `APP_PORT`  | `8000`      | Puerto del host donde se publica el panel.      |
-| `DB_SEED`   | `true`      | Carga los datos de ejemplo en el primer inicio. |
+| Variable       | Por defecto             | Descripción                                          |
+| -------------- | ----------------------- | ---------------------------------------------------- |
+| `APP_PORT`     | `8000`                  | Puerto del host donde se publica el panel.           |
+| `APP_URL`      | `http://localhost:8000` | Base de las URLs que la app de Unity usa para bajar los modelos. |
+| `MAILPIT_PORT` | `8025`                  | Puerto del buzón de correo de prueba.                |
+| `DB_SEED`      | `true`                  | Carga los datos de ejemplo en el primer inicio.      |
 
 Para usar otro puerto: `APP_PORT=9000 docker compose up`.
+
+> **Importante al desplegar en un servidor:** `APP_URL` debe apuntar al dominio
+> real. La API entrega en `model_url` e `image_url` rutas absolutas construidas a
+> partir de esta variable, así que si queda en `localhost` la app de Unity no
+> podrá descargar los modelos.
+
+### Correo
+
+La recuperación de contraseña y la verificación de cuenta necesitan un servidor
+de correo. El entorno de Docker incluye **Mailpit**, que captura los mensajes en
+lugar de enviarlos y los muestra en **http://localhost:8025**, de modo que el
+flujo puede probarse sin una cuenta SMTP real.
+
+Para enviar correo de verdad se apuntan estas variables a un servidor propio:
+
+```bash
+MAIL_HOST=smtp.midominio.cl MAIL_PORT=587 \
+MAIL_USERNAME=usuario MAIL_PASSWORD=clave MAIL_SCHEME=tls \
+    docker compose up -d
+```
 
 ### Límites de recursos
 
