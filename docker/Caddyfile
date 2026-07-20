@@ -1,0 +1,18 @@
+{
+	frankenphp
+	# The container is meant to sit behind the host or a reverse proxy, so Caddy
+	# does not try to issue its own certificates.
+	auto_https off
+}
+
+:80 {
+	root /app/public
+	encode zstd gzip
+
+	# Serves the Laravel front controller and the compiled Vite assets.
+	php_server
+
+	log {
+		output stderr
+	}
+}

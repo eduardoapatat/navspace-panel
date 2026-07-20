@@ -1,0 +1,38 @@
+# Optional override that keeps the data on a dedicated, size limited filesystem
+# instead of the default Docker volumes. Use it on servers that host other
+# services, so the panel can never fill the whole disk.
+#
+# 1. Prepare a mount point of the desired size, for example a 20 GB loopback file:
+#
+#      sudo fallocate -l 20G /var/navspace.img
+#      sudo mkfs.ext4 /var/navspace.img
+#      sudo mkdir -p /mnt/navspace
+#      sudo mount -o loop /var/navspace.img /mnt/navspace
+#      echo '/var/navspace.img /mnt/navspace ext4 loop 0 0' | sudo tee -a /etc/fstab
+#
+# 2. Create the two directories inside it. Docker does not create them and the
+#    container refuses to start when the path is missing:
+#
+#      sudo mkdir -p /mnt/navspace/database /mnt/navspace/storage
+#
+# 3. Start the panel with both files:
+#
+#      STORAGE_PATH=/mnt/navspace \
+#        docker compose -f docker-compose.yml -f docker-compose.storage.yml up -d
+#
+# Without this override the panel still works: it falls back to regular Docker
+# volumes, which grow with the free space of the host.
+
+volumes:
+    navspace-database:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${STORAGE_PATH:?Set STORAGE_PATH to the mounted directory}/database
+    navspace-storage:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${STORAGE_PATH:?Set STORAGE_PATH to the mounted directory}/storage

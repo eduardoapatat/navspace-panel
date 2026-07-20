@@ -1,0 +1,44 @@
+services:
+    app:
+        build:
+            context: .
+        image: navspace-panel
+        container_name: navspace-panel
+        restart: unless-stopped
+        ports:
+            - '${APP_PORT:-8000}:80'
+        environment:
+            APP_NAME: NavSpace
+            APP_ENV: production
+            APP_DEBUG: 'false'
+            APP_URL: 'http://localhost:${APP_PORT:-8000}'
+            DB_CONNECTION: sqlite
+            DB_DATABASE: /app/database-data/database.sqlite
+            # Loads the DICI demo data on the first start.
+            DB_SEED: 'true'
+        volumes:
+            # Keeps the SQLite database between restarts.
+            - navspace-database:/app/database-data
+            # Keeps the uploaded building models and images.
+            - navspace-storage:/app/storage/app/public
+        # Caps so a runaway container cannot exhaust the host.
+        mem_limit: 1g
+        cpus: 2
+        pids_limit: 256
+        # Without a cap, container logs grow until they fill the server disk.
+        logging:
+            driver: json-file
+            options:
+                max-size: 10m
+                max-file: '3'
+        # Reuses the endpoint the Unity app already polls to check the API.
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://localhost/api/health']
+            interval: 30s
+            timeout: 5s
+            start_period: 60s
+            retries: 3
+
+volumes:
+    navspace-database:
+    navspace-storage:
