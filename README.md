@@ -74,8 +74,14 @@ equipo, solo [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 ```bash
 git clone <url-del-repositorio>
 cd navspace-panel
+cp .env.example .env
 docker compose up --build
 ```
+
+El archivo `.env` es obligatorio y concentra toda la configuración; cada variable
+viene explicada dentro de `.env.example`. Se edita antes de levantar, sobre todo
+`APP_URL`. Si falta, Docker se detiene con un mensaje claro en lugar de arrancar
+a medias.
 
 Al terminar, el panel queda disponible en **http://localhost:8000** con estas
 credenciales de acceso:
@@ -100,46 +106,74 @@ docker compose down -v        # detener y borrar la base de datos y los modelos
 
 ### Configuración
 
-Para probarlo en local no hace falta configurar nada. Al desplegarlo en un
-servidor, toda la configuración va en un solo archivo:
+Todo se define en el `.env`. Estas son las variables que hay que revisar antes de
+desplegar:
 
-```bash
-cp .env.docker.example .env.docker
-```
+| Variable          | Por defecto             | Para qué sirve                                             |
+| ----------------- | ----------------------- | ---------------------------------------------------------- |
+| `APP_URL`         | `http://localhost:8000` | Dirección desde la que el visor descarga los modelos.       |
+| `APP_PORT`        | `8000`                  | Puerto por el que se publica el panel.                      |
+| `APP_NAME`        | `NavSpace`              | Nombre que se muestra en el panel y en los correos.         |
+| `DB_SEED`         | `true`                  | Carga los datos de ejemplo del DICI en el primer inicio.    |
+| `MAIL_MAILER`     | `log`                   | `smtp` para enviar de verdad, `log` para solo registrarlos. |
+| `MAIL_HOST`       | `smtp.gmail.com`        | Servidor de correo saliente.                                |
+| `MAIL_PORT`       | `587`                   | Puerto del servidor de correo.                              |
+| `MAIL_SCHEME`     | `tls`                   | Cifrado de la conexión con ese servidor.                    |
+| `MAIL_USERNAME`   | vacío                   | Cuenta que envía los correos.                               |
+| `MAIL_PASSWORD`   | vacío                   | Su contraseña. En Gmail, una contraseña de aplicación.      |
+| `MAIL_FROM_ADDRESS` | `no-reply@navspace.cl` | Remitente que ve quien recibe el correo.                 |
+| `MAIL_FROM_NAME`  | `NavSpace`              | Nombre que acompaña a ese remitente.                        |
 
-Se edita ese archivo y se levanta con `docker compose up -d`. No se versiona, así
-que es el lugar de las credenciales. Si no existe, el panel arranca igual con los
-valores por defecto.
+El resto son ajustes del framework que funcionan tal como vienen:
 
-Lo que conviene revisar antes de desplegar:
-
-| Variable     | Por defecto             | Para qué sirve                                     |
-| ------------ | ----------------------- | -------------------------------------------------- |
-| `APP_URL`    | `http://localhost:8000` | Dirección desde la que el visor descarga los modelos. |
-| `APP_PORT`   | `8000`                  | Puerto del host. Cámbialo si ya está ocupado.       |
-| `MAIL_*`     | Mailpit                 | Servidor de correo para recuperar contraseñas.      |
-| `DB_SEED`    | `true`                  | Carga los datos de ejemplo en el primer inicio.     |
-
-`APP_PORT` y `MAILPIT_PORT` se pasan por línea de comandos, ya que los usa Docker
-y no la aplicación: `APP_PORT=9000 docker compose up -d`.
+| Variable                   | Por defecto  | Para qué sirve                                             |
+| -------------------------- | ------------ | ---------------------------------------------------------- |
+| `APP_KEY`                  | vacío        | Cifra sesiones y secretos de doble factor. Se genera sola.  |
+| `APP_ENV`                  | `production` | Entorno de ejecución.                                       |
+| `APP_DEBUG`                | `false`      | En producción no deben mostrarse los detalles de error.     |
+| `APP_LOCALE`               | `es`         | Idioma de los mensajes del sistema.                         |
+| `APP_FALLBACK_LOCALE`      | `es`         | Idioma de respaldo si falta una traducción.                 |
+| `APP_FAKER_LOCALE`         | `es_ES`      | Idioma de los datos de prueba.                              |
+| `APP_MAINTENANCE_DRIVER`   | `file`       | Cómo se activa el modo mantenimiento.                       |
+| `BCRYPT_ROUNDS`            | `12`         | Coste del cifrado de contraseñas.                           |
+| `DB_CONNECTION`            | `sqlite`     | Motor de base de datos.                                     |
+| `LOG_CHANNEL` / `LOG_STACK`| `stack` / `single` | Dónde se escriben los registros.                      |
+| `LOG_LEVEL`                | `error`      | Detalle de lo que se registra.                              |
+| `LOG_DEPRECATIONS_CHANNEL` | `null`       | Canal para avisos de funciones obsoletas.                   |
+| `SESSION_DRIVER`           | `database`   | Dónde se guardan las sesiones.                              |
+| `SESSION_LIFETIME`         | `120`        | Minutos que dura la sesión sin actividad.                   |
+| `SESSION_ENCRYPT`          | `false`      | Cifrado adicional de la sesión.                             |
+| `SESSION_PATH`             | `/`          | Ruta para la que vale la cookie de sesión.                  |
+| `SESSION_DOMAIN`           | `null`       | Dominio de esa cookie.                                      |
+| `CACHE_STORE`              | `database`   | Almacén de la caché.                                        |
+| `QUEUE_CONNECTION`         | `database`   | Almacén de los trabajos en cola.                            |
+| `BROADCAST_CONNECTION`     | `log`        | Canal de difusión de eventos.                               |
+| `FILESYSTEM_DISK`          | `local`      | Disco por defecto para los archivos.                        |
+| `VITE_APP_NAME`            | `${APP_NAME}`| Nombre que usa la interfaz compilada.                       |
 
 > **`APP_URL` es la que más se equivoca.** No necesita un dominio: sirve la IP del
-> servidor, por ejemplo `http://192.168.1.50:8000`. Lo que importa es que el Meta
+> servidor, por ejemplo `http://192.168.1.50:9000`. Lo que importa es que el Meta
 > Quest pueda alcanzar esa dirección, porque la API entrega en `model_url` e
 > `image_url` rutas absolutas construidas con ella. Si queda en `localhost`, el
 > visor la buscará en sí mismo y no encontrará los modelos.
+>
+> Al cambiar `APP_PORT` hay que **poner ese mismo puerto en `APP_URL`**, o el
+> visor pedirá los modelos al puerto equivocado.
 
 ### Correo
 
 La recuperación de contraseña y la verificación de cuenta necesitan un servidor
-de correo. El entorno incluye **Mailpit**, que captura los mensajes en lugar de
-enviarlos y los muestra en **http://localhost:8025**, de modo que el flujo puede
-probarse sin una cuenta SMTP real.
+SMTP, que se define con las variables `MAIL_*` de `.env.docker`. Sirve cualquiera:
+Gmail, el del hosting o uno en la nube como Brevo, Resend o Mailgun.
 
-Para enviar correo de verdad, en `.env.docker` se descomenta el bloque de Gmail o
-se apunta al servidor que corresponda. En el caso de Gmail la contraseña no es la
-de la cuenta, sino una **contraseña de aplicación** generada desde la
-configuración de seguridad de Google.
+La plantilla trae el ejemplo de Gmail listo para completar con la cuenta y su
+contraseña. En ese caso la contraseña no es la de la cuenta, sino una
+**contraseña de aplicación** generada desde la configuración de seguridad de
+Google, con la verificación en dos pasos activada.
+
+Mientras no se configuren, los mensajes se escriben en el log en lugar de
+enviarse, así que el panel funciona pero la recuperación de contraseña no llega
+al destinatario.
 
 ### Límites de recursos
 

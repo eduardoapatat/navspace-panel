@@ -80,7 +80,6 @@ COPY --from=build /app /app
 RUN mkdir -p /app/database-data \
     && chown -R www-data:www-data /app/storage /app/bootstrap/cache /app/database-data
 
-COPY docker/env.defaults /usr/local/etc/navspace/env.defaults
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 

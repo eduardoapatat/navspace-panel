@@ -6,25 +6,22 @@ cd /app
 DB_DATABASE="${DB_DATABASE:-/app/database-data/database.sqlite}"
 export DB_DATABASE
 
-# The image ships without a .env file, so it is created on the first run from the
-# baked defaults. Anything set through env_file still wins over this file.
-if [ ! -f .env ]; then
-    cp /usr/local/etc/navspace/env.defaults .env
-fi
-
-# Laravel needs a key to encrypt sessions, cookies and the two factor secrets.
-# It is kept next to the database so it survives recreating the container: a new
-# key would log everyone out and leave the stored 2FA secrets unreadable.
+# The container is configured entirely through environment variables, which
+# Compose fills from the .env of the host, so it keeps no .env file of its own.
+#
+# APP_KEY is the exception: Laravel needs one to encrypt sessions, cookies and
+# the two factor secrets, and it has to stay the same forever. Rotating it logs
+# everyone out and leaves the stored 2FA secrets unreadable, so when the deploy
+# does not provide one it is generated once and kept next to the database.
 KEY_FILE=/app/database-data/app_key
 
-if [ -n "${APP_KEY}" ]; then
-    : # Supplied through .env.docker, nothing to generate.
-elif [ -f "${KEY_FILE}" ]; then
+if [ -z "${APP_KEY}" ]; then
+    if [ ! -f "${KEY_FILE}" ]; then
+        php artisan key:generate --show >"${KEY_FILE}"
+    fi
+
     APP_KEY=$(cat "${KEY_FILE}")
     export APP_KEY
-else
-    php artisan key:generate --force
-    grep '^APP_KEY=' .env | cut -d '=' -f2- >"${KEY_FILE}"
 fi
 
 # The SQLite file lives on a volume so the data survives container restarts.

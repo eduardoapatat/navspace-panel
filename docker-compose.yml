@@ -7,18 +7,11 @@ services:
         restart: unless-stopped
         ports:
             - '${APP_PORT:-8000}:80'
-        # Settings the operator is expected to change, including the SMTP
-        # credentials. Copy .env.docker.example to .env.docker and edit it there;
-        # the panel still starts with sane defaults when the file is absent.
+        # Every setting comes from .env, copied from .env.example. Compose fails
+        # when it is missing, so the panel never starts half configured.
         env_file:
-            - path: .env.docker
-              required: false
-        # Fixed values: they map to the volumes below, so they are not meant to
-        # be overridden from .env.docker.
-        #
-        # Settings are deliberately not listed here for the shell to fill in.
-        # Compose resolves bare names from the project .env too, which belongs to
-        # the local install, and its mail and URL settings would leak inside.
+            - .env
+        # Fixed values: they map to the volumes below and are not meant to change.
         environment:
             DB_CONNECTION: sqlite
             DB_DATABASE: /app/database-data/database.sqlite
@@ -44,21 +37,6 @@ services:
             timeout: 5s
             start_period: 60s
             retries: 3
-
-    # Catches the outgoing mail so password resets and email verification can be
-    # tested without a real SMTP account. Replace it in production.
-    mailpit:
-        image: axllent/mailpit:latest
-        container_name: navspace-mailpit
-        restart: unless-stopped
-        ports:
-            - '${MAILPIT_PORT:-8025}:8025'
-        mem_limit: 256m
-        logging:
-            driver: json-file
-            options:
-                max-size: 10m
-                max-file: '3'
 
 volumes:
     navspace-database:
