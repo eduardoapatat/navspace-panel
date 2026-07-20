@@ -6,9 +6,15 @@ cd /app
 DB_DATABASE="${DB_DATABASE:-/app/database-data/database.sqlite}"
 export DB_DATABASE
 
-# The image ships without a .env file, so it is created on the first run.
+# The image ships without a .env file, so it is created on the first run. The
+# Docker template is preferred because .env.example carries the defaults of a
+# local install. Anything set through env_file still wins over this file.
 if [ ! -f .env ]; then
-    cp .env.example .env
+    if [ -f .env.docker.example ]; then
+        cp .env.docker.example .env
+    else
+        cp .env.example .env
+    fi
 fi
 
 # Generate the application key only when one has not been set yet.

@@ -7,27 +7,17 @@ services:
         restart: unless-stopped
         ports:
             - '${APP_PORT:-8000}:80'
+        # Settings the operator is expected to change, including the SMTP
+        # credentials. Copy .env.docker.example to .env.docker and edit it there;
+        # the panel still starts with sane defaults when the file is absent.
+        env_file:
+            - path: .env.docker
+              required: false
+        # Fixed values: they map to the volumes below, so they are not meant to
+        # be overridden from .env.docker.
         environment:
-            APP_NAME: NavSpace
-            APP_ENV: production
-            # .env.example ships the English defaults, so the panel language is
-            # set here to match the one used in development.
-            APP_LOCALE: es
-            APP_FALLBACK_LOCALE: es
-            APP_DEBUG: 'false'
-            APP_URL: 'http://localhost:${APP_PORT:-8000}'
             DB_CONNECTION: sqlite
             DB_DATABASE: /app/database-data/database.sqlite
-            # Password resets and email verification are delivered to Mailpit,
-            # where they can be read from the browser. Point these at a real SMTP
-            # server to send actual email.
-            MAIL_MAILER: smtp
-            MAIL_HOST: mailpit
-            MAIL_PORT: 1025
-            MAIL_FROM_ADDRESS: no-reply@navspace.local
-            MAIL_FROM_NAME: NavSpace
-            # Loads the DICI demo data on the first start.
-            DB_SEED: 'true'
         volumes:
             # Keeps the SQLite database between restarts.
             - navspace-database:/app/database-data

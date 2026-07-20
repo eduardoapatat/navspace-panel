@@ -98,36 +98,48 @@ docker compose down           # detener
 docker compose down -v        # detener y borrar la base de datos y los modelos
 ```
 
-**Configuración**
+### Configuración
 
-| Variable       | Por defecto             | Descripción                                          |
-| -------------- | ----------------------- | ---------------------------------------------------- |
-| `APP_PORT`     | `8000`                  | Puerto del host donde se publica el panel.           |
-| `APP_URL`      | `http://localhost:8000` | Base de las URLs que la app de Unity usa para bajar los modelos. |
-| `MAILPIT_PORT` | `8025`                  | Puerto del buzón de correo de prueba.                |
-| `DB_SEED`      | `true`                  | Carga los datos de ejemplo en el primer inicio.      |
+Para probarlo en local no hace falta configurar nada. Al desplegarlo en un
+servidor, toda la configuración va en un solo archivo:
 
-Para usar otro puerto: `APP_PORT=9000 docker compose up`.
+```bash
+cp .env.docker.example .env.docker
+```
 
-> **Importante al desplegar en un servidor:** `APP_URL` debe apuntar al dominio
-> real. La API entrega en `model_url` e `image_url` rutas absolutas construidas a
-> partir de esta variable, así que si queda en `localhost` la app de Unity no
-> podrá descargar los modelos.
+Se edita ese archivo y se levanta con `docker compose up -d`. No se versiona, así
+que es el lugar de las credenciales. Si no existe, el panel arranca igual con los
+valores por defecto.
+
+Lo que conviene revisar antes de desplegar:
+
+| Variable     | Por defecto             | Para qué sirve                                     |
+| ------------ | ----------------------- | -------------------------------------------------- |
+| `APP_URL`    | `http://localhost:8000` | Dirección desde la que el visor descarga los modelos. |
+| `APP_PORT`   | `8000`                  | Puerto del host. Cámbialo si ya está ocupado.       |
+| `MAIL_*`     | Mailpit                 | Servidor de correo para recuperar contraseñas.      |
+| `DB_SEED`    | `true`                  | Carga los datos de ejemplo en el primer inicio.     |
+
+`APP_PORT` y `MAILPIT_PORT` se pasan por línea de comandos, ya que los usa Docker
+y no la aplicación: `APP_PORT=9000 docker compose up -d`.
+
+> **`APP_URL` es la que más se equivoca.** No necesita un dominio: sirve la IP del
+> servidor, por ejemplo `http://192.168.1.50:8000`. Lo que importa es que el Meta
+> Quest pueda alcanzar esa dirección, porque la API entrega en `model_url` e
+> `image_url` rutas absolutas construidas con ella. Si queda en `localhost`, el
+> visor la buscará en sí mismo y no encontrará los modelos.
 
 ### Correo
 
 La recuperación de contraseña y la verificación de cuenta necesitan un servidor
-de correo. El entorno de Docker incluye **Mailpit**, que captura los mensajes en
-lugar de enviarlos y los muestra en **http://localhost:8025**, de modo que el
-flujo puede probarse sin una cuenta SMTP real.
+de correo. El entorno incluye **Mailpit**, que captura los mensajes en lugar de
+enviarlos y los muestra en **http://localhost:8025**, de modo que el flujo puede
+probarse sin una cuenta SMTP real.
 
-Para enviar correo de verdad se apuntan estas variables a un servidor propio:
-
-```bash
-MAIL_HOST=smtp.midominio.cl MAIL_PORT=587 \
-MAIL_USERNAME=usuario MAIL_PASSWORD=clave MAIL_SCHEME=tls \
-    docker compose up -d
-```
+Para enviar correo de verdad, en `.env.docker` se descomenta el bloque de Gmail o
+se apunta al servidor que corresponda. En el caso de Gmail la contraseña no es la
+de la cuenta, sino una **contraseña de aplicación** generada desde la
+configuración de seguridad de Google.
 
 ### Límites de recursos
 
