@@ -15,6 +15,10 @@ services:
               required: false
         # Fixed values: they map to the volumes below, so they are not meant to
         # be overridden from .env.docker.
+        #
+        # Settings are deliberately not listed here for the shell to fill in.
+        # Compose resolves bare names from the project .env too, which belongs to
+        # the local install, and its mail and URL settings would leak inside.
         environment:
             DB_CONNECTION: sqlite
             DB_DATABASE: /app/database-data/database.sqlite
