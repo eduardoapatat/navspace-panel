@@ -6,20 +6,25 @@ cd /app
 DB_DATABASE="${DB_DATABASE:-/app/database-data/database.sqlite}"
 export DB_DATABASE
 
-# The image ships without a .env file, so it is created on the first run. The
-# Docker template is preferred because .env.example carries the defaults of a
-# local install. Anything set through env_file still wins over this file.
+# The image ships without a .env file, so it is created on the first run from the
+# baked defaults. Anything set through env_file still wins over this file.
 if [ ! -f .env ]; then
-    if [ -f .env.docker.example ]; then
-        cp .env.docker.example .env
-    else
-        cp .env.example .env
-    fi
+    cp /usr/local/etc/navspace/env.defaults .env
 fi
 
-# Generate the application key only when one has not been set yet.
-if ! grep -q '^APP_KEY=base64:' .env; then
+# Laravel needs a key to encrypt sessions, cookies and the two factor secrets.
+# It is kept next to the database so it survives recreating the container: a new
+# key would log everyone out and leave the stored 2FA secrets unreadable.
+KEY_FILE=/app/database-data/app_key
+
+if [ -n "${APP_KEY}" ]; then
+    : # Supplied through .env.docker, nothing to generate.
+elif [ -f "${KEY_FILE}" ]; then
+    APP_KEY=$(cat "${KEY_FILE}")
+    export APP_KEY
+else
     php artisan key:generate --force
+    grep '^APP_KEY=' .env | cut -d '=' -f2- >"${KEY_FILE}"
 fi
 
 # The SQLite file lives on a volume so the data survives container restarts.
