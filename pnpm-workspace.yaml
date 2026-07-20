@@ -3,6 +3,11 @@ packages:
 
 allowBuilds:
   sharp: true
+  # Declared explicitly so `pnpm install` stays non-interactive in CI and Docker
+  # builds. Their install scripts are not needed: the project already sets
+  # ignore-scripts in .npmrc, so they never run locally either.
+  unrs-resolver: false
+  vue-demi: false
 
 publicHoistPattern:
   - '@inertiajs/core'
