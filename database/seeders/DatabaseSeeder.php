@@ -19,10 +19,10 @@ class DatabaseSeeder extends Seeder
         // on installs without development dependencies, such as the Docker image,
         // where Faker is not available. The password cast hashes it on save.
         User::firstOrCreate(
-            ['email' => 'test@example.com'],
+            ['email' => config('navspace.admin.email')],
             [
-                'name' => 'Administrador NavSpace',
-                'password' => 'password',
+                'name' => config('navspace.admin.name'),
+                'password' => config('navspace.admin.password'),
                 'email_verified_at' => now(),
             ]
         );

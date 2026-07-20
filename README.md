@@ -83,8 +83,9 @@ viene explicada dentro de `.env.example`. Se edita antes de levantar, sobre todo
 `APP_URL`. Si falta, Docker se detiene con un mensaje claro en lugar de arrancar
 a medias.
 
-Al terminar, el panel queda disponible en **http://localhost:8000** con estas
-credenciales de acceso:
+Al terminar, el panel queda disponible en **http://localhost:8000**. La cuenta de
+acceso se define con `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el `.env`; si no se
+tocan, se crea con estas credenciales de ejemplo:
 
 | Correo             | Contraseña |
 | ------------------ | ---------- |
@@ -114,6 +115,9 @@ desplegar:
 | `APP_PORT`        | `8000`                  | Puerto por el que se publica el panel.                      |
 | `APP_NAME`        | `NavSpace`              | Nombre que se muestra en el panel y en los correos.         |
 | `DB_SEED`         | `true`                  | Carga los datos de ejemplo del DICI en el primer inicio.    |
+| `ADMIN_EMAIL`     | `test@example.com`      | Correo de la cuenta con la que se entra al panel.           |
+| `ADMIN_PASSWORD`  | `password`              | Su contraseña. Conviene cambiarla en un despliegue real.    |
+| `ADMIN_NAME`      | `Administrador NavSpace`| Nombre que se muestra para esa cuenta.                      |
 | `MAIL_MAILER`     | `log`                   | `smtp` para enviar de verdad, `log` para solo registrarlos. |
 | `MAIL_HOST`       | `smtp.gmail.com`        | Servidor de correo saliente.                                |
 | `MAIL_PORT`       | `587`                   | Puerto del servidor de correo.                              |
