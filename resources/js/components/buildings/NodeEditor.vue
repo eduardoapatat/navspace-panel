@@ -370,7 +370,8 @@ const heading = computed<number>({
     set: (value: number) => {
         if (initialNode.value) {
             initialNode.value.heading = value;
-            markDirty();
+            // The arrow has its own watcher; the heading changes no edge.
+            markUnsaved();
         }
     },
 });
@@ -396,7 +397,7 @@ watch(
 
         // Params changed → unsaved and recompute the preview.
         dirty.value = true;
-        computeGraph();
+        scheduleGraph();
     },
 );
 
@@ -1375,7 +1376,8 @@ function setNodeGroup(id: number, value: string): void {
     }
 
     node.node_group_id = value === NO_GROUP ? null : Number(value);
-    markDirty();
+    // Grouping is purely organizational: it never changes the connections.
+    markUnsaved();
 }
 
 // Only one node may be the building's initial (calibration) anchor.
@@ -1397,8 +1399,9 @@ function toggleInitial(id: number): void {
         }
     }
 
+    // Colors are refreshed above; the initial flag doesn't change any edge.
     refreshColors();
-    markDirty();
+    markUnsaved();
 }
 
 function deleteNode(id: number): void {
@@ -1426,10 +1429,37 @@ function deleteNode(id: number): void {
     markDirty();
 }
 
+// Flag unsaved changes WITHOUT rebuilding the 3D preview. For edits that can't
+// change the graph (renaming, grouping, heading, initial flag). Rebuilding on
+// every keystroke made typing a node name lag: the preview is O(n²) over every
+// pair and allocates a canvas texture per edge label.
+function markUnsaved(): void {
+    dirty.value = true;
+}
+
+// Coalesce bursts of changes (typing in the distance inputs, several edits in a
+// row) into a single rebuild, instead of one per change.
+let graphTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleGraph(): void {
+    if (graphTimer !== null) {
+        clearTimeout(graphTimer);
+    }
+
+    graphTimer = setTimeout(() => {
+        graphTimer = null;
+
+        // The component may have been torn down while the timer was pending.
+        if (scene.value) {
+            computeGraph();
+        }
+    }, 120);
+}
+
 function markDirty(): void {
     dirty.value = true;
     // Live preview is always on: keep the drawn graph in sync.
-    computeGraph();
+    scheduleGraph();
 }
 
 // Persist nodes AND the A* parameters together in one Save action. First the
@@ -1593,6 +1623,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     cancelAnimationFrame(animationId);
+
+    if (graphTimer !== null) {
+        clearTimeout(graphTimer);
+        graphTimer = null;
+    }
+
     clearGraph();
     resizeObserver?.disconnect();
     window.removeEventListener('resize', onResize);
@@ -2080,7 +2116,7 @@ defineExpose({
                                                 placeholder="Nombre (ej. Entrada)"
                                                 class="w-full rounded border bg-background px-2 py-1 text-[11px]"
                                                 @click.stop
-                                                @input="markDirty"
+                                                @input="markUnsaved"
                                                 @keyup.enter="stopEditingLabel"
                                                 @keyup.esc="stopEditingLabel"
                                                 @blur="stopEditingLabel"
