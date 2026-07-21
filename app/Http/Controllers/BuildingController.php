@@ -41,6 +41,7 @@ class BuildingController extends Controller
         $building->load([
             'nodeGroups' => fn ($query) => $query->orderBy('name'),
             'nodes' => fn ($query) => $query->orderBy('id'),
+            'connectionOverrides',
         ]);
 
         return Inertia::render('buildings/nodes/Editor', [

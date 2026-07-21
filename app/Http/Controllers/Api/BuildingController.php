@@ -23,7 +23,13 @@ class BuildingController extends Controller
      */
     public function show(Building $building): BuildingDetailResource
     {
-        $building->load(['nodeGroups', 'nodes', 'destinations.spaceType', 'destinations.node']);
+        $building->load([
+            'nodeGroups',
+            'nodes',
+            'connectionOverrides',
+            'destinations.spaceType',
+            'destinations.node',
+        ]);
 
         return new BuildingDetailResource($building);
     }

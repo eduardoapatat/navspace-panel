@@ -52,6 +52,14 @@ class BuildingDetailResource extends JsonResource
                 // Facing direction; only set on the initial node (null otherwise).
                 'heading' => $node->heading,
             ]),
+            // Manual exceptions Unity applies after building the graph: 'blocked'
+            // pairs are disconnected (a wall sits between them), 'forced' pairs
+            // are linked even when distance or height would rule them out (stairs).
+            'connection_overrides' => $this->connectionOverrides->map(fn ($override): array => [
+                'a' => $override->node_a_id,
+                'b' => $override->node_b_id,
+                'type' => $override->type->value,
+            ]),
             'destinations' => DestinationResource::collection($this->whenLoaded('destinations')),
         ];
     }
