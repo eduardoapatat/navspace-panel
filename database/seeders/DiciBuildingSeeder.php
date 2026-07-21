@@ -6,6 +6,7 @@ use App\Models\Building;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * Seeds the DICI building (Departamento de Informática) with its node groups,
@@ -230,10 +231,16 @@ class DiciBuildingSeeder extends Seeder
      */
     private function storeAsset(string $filename, string $folder): string
     {
-        return Storage::disk('public')->putFileAs(
+        $path = Storage::disk('public')->putFileAs(
             $folder,
             new File(database_path("seeders/assets/{$filename}")),
             $filename,
         );
+
+        if ($path === false) {
+            throw new RuntimeException("Unable to copy the seeded asset {$filename} to the public disk.");
+        }
+
+        return $path;
     }
 }
