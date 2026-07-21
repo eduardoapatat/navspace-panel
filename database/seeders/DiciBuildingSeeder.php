@@ -4,14 +4,17 @@ namespace Database\Seeders;
 
 use App\Models\Building;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\File;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Seeds the DICI building (Departamento de Informática) with its node groups,
  * space types, every navigation node (including the initial/calibration node)
  * and its destinations, wiring each destination to its space type and node.
  *
- * Files are intentionally excluded (building image, .glb model, schedule images
- * and responsible photos) — upload those from the panel after seeding.
+ * The building picture and the .glb model ship with the seeder so a fresh
+ * install is navigable right away. Schedule images and responsible photos are
+ * still uploaded from the panel.
  *
  * Run: php artisan db:seed --class=DiciBuildingSeeder
  */
@@ -22,6 +25,10 @@ class DiciBuildingSeeder extends Seeder
         $building = Building::create([
             'name' => 'Departamento Informática',
             'address' => 'Av. General Velásquez 1775, Arica',
+            'image_path' => $this->storeAsset('dici.jpg', 'buildings'),
+            'model_path' => $this->storeAsset('dici.glb', 'models'),
+            // Fixed instead of auto-detected: this is the value the headset was
+            // calibrated against.
             'model_yaw' => 180,
             'pathfinding_config' => [
                 'max_distance' => 2,
@@ -215,5 +222,18 @@ class DiciBuildingSeeder extends Seeder
                 'node_id' => $nodes[$oldNode],
             ]);
         }
+    }
+
+    /**
+     * Copies a file bundled with the seeder into the public disk, mirroring
+     * where the panel stores its uploads, and returns the stored path.
+     */
+    private function storeAsset(string $filename, string $folder): string
+    {
+        return Storage::disk('public')->putFileAs(
+            $folder,
+            new File(database_path("seeders/assets/{$filename}")),
+            $filename,
+        );
     }
 }
