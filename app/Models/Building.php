@@ -137,4 +137,15 @@ class Building extends Model
     {
         return $this->hasMany(Destination::class);
     }
+
+    /**
+     * Manual exceptions to how Unity links this building's nodes: pairs that
+     * must never be connected (a wall) or that must always be (stairs).
+     *
+     * @return HasMany<NodeConnectionOverride, $this>
+     */
+    public function connectionOverrides(): HasMany
+    {
+        return $this->hasMany(NodeConnectionOverride::class);
+    }
 }
