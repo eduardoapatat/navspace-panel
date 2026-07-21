@@ -18,8 +18,21 @@ export interface Building {
     created_at: string;
     node_groups?: NodeGroup[];
     nodes?: Node[];
+    connection_overrides?: ConnectionOverride[];
     space_types?: SpaceType[];
     destinations?: Destination[];
+}
+
+// Manual exception to how Unity links two nodes: 'blocked' never connects them
+// (a wall sits between them), 'forced' always does (stairs).
+export type ConnectionOverrideType = 'blocked' | 'forced';
+
+export interface ConnectionOverride {
+    id: number;
+    building_id: number;
+    node_a_id: number;
+    node_b_id: number;
+    type: ConnectionOverrideType;
 }
 
 // Optional label used to group a building's nodes/destinations ("Piso 1", "Sótano").

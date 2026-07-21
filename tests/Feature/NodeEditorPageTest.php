@@ -2,6 +2,7 @@
 
 use App\Models\Building;
 use App\Models\Node;
+use App\Models\NodeConnectionOverride;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -22,5 +23,25 @@ it('renders the node editor with the building nodes', function () {
             ->where('building.model_url', url('storage/models/dici.glb'))
             ->has('building.nodes', 1)
             ->where('building.nodes.0.position_z', 6.155)
+        );
+});
+
+it('renders the node editor with the manual connection rules', function () {
+    $building = Building::factory()->create();
+    $a = Node::factory()->for($building)->create();
+    $b = Node::factory()->for($building)->create();
+    NodeConnectionOverride::factory()->forced()->create([
+        'building_id' => $building->id,
+        'node_a_id' => min($a->id, $b->id),
+        'node_b_id' => max($a->id, $b->id),
+    ]);
+
+    $this->get(route('buildings.nodes', $building))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('buildings/nodes/Editor')
+            ->has('building.connection_overrides', 1)
+            ->where('building.connection_overrides.0.node_a_id', min($a->id, $b->id))
+            ->where('building.connection_overrides.0.type', 'forced')
         );
 });

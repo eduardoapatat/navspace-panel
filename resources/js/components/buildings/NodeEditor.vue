@@ -23,7 +23,10 @@ import {
     shallowRef,
     watch,
 } from 'vue';
-import type { Building } from '@/components/buildings/building';
+import type {
+    Building,
+    ConnectionOverrideType,
+} from '@/components/buildings/building';
 import NodeGroupsPanel from '@/components/buildings/NodeGroupsPanel.vue';
 import {
     Accordion,
@@ -135,6 +138,81 @@ const localNodes = ref<LocalNode[]>(
     })),
 );
 
+// Manual exceptions to the automatic linking, kept in localId space like the
+// nodes above (an existing node's localId is its database id).
+interface LocalOverride {
+    a: number;
+    b: number;
+    type: ConnectionOverrideType;
+}
+
+const localOverrides = ref<LocalOverride[]>(
+    (props.building.connection_overrides ?? []).map((override) => ({
+        a: override.node_a_id,
+        b: override.node_b_id,
+        type: override.type,
+    })),
+);
+
+// The second node of a pair, picked with Ctrl+click, so a rule can be created
+// between it and the currently selected node.
+const pairSelection = ref<number | null>(null);
+
+// Order-independent key for a pair, mirroring how the server normalizes it.
+function pairKey(a: number, b: number): string {
+    return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
+const overrideByPair = computed(() => {
+    const map = new Map<string, LocalOverride>();
+
+    for (const override of localOverrides.value) {
+        map.set(pairKey(override.a, override.b), override);
+    }
+
+    return map;
+});
+
+// Create or replace the rule for a pair.
+function setOverride(a: number, b: number, type: ConnectionOverrideType): void {
+    const key = pairKey(a, b);
+    const existing = localOverrides.value.find(
+        (override) => pairKey(override.a, override.b) === key,
+    );
+
+    if (existing) {
+        existing.type = type;
+    } else {
+        localOverrides.value.push({ a, b, type });
+    }
+
+    markDirty();
+}
+
+function removeOverride(a: number, b: number): void {
+    const key = pairKey(a, b);
+    localOverrides.value = localOverrides.value.filter(
+        (override) => pairKey(override.a, override.b) !== key,
+    );
+    markDirty();
+}
+
+// Clicking an edge cuts it; clicking an already cut one restores it.
+function toggleBlockedEdge(a: number, b: number): void {
+    if (overrideByPair.value.get(pairKey(a, b))?.type === 'blocked') {
+        removeOverride(a, b);
+    } else {
+        setOverride(a, b, 'blocked');
+    }
+}
+
+// Display name of a node, matching the list ("Nodo 3" when it has no label).
+function nodeName(localId: number): string {
+    const node = localNodes.value.find((n) => n.localId === localId);
+
+    return node ? node.label || `Nodo ${nodeNumber(node)}` : `#${localId}`;
+}
+
 // The building's node groups, for the per-node group select. Reactive to the
 // building prop so newly created groups appear without a full reload.
 const nodeGroups = computed(() => props.building.node_groups ?? []);
@@ -215,6 +293,8 @@ let pointerDownAt = { x: 0, y: 0 };
 // The group holding the simulated A* graph edges (preview only, not saved).
 let graphGroup: THREE.Group | null = null;
 const graphRaycaster = new THREE.Raycaster();
+// The drawn edges, kept apart from the labels so clicks can hit only them.
+let edgeMeshes: THREE.Mesh[] = [];
 
 // Right-click context menu: position, plus what it targets. On a node it offers
 // duplicate/delete; on empty model space it offers create. null = hidden.
@@ -232,6 +312,8 @@ const hoveredId = ref<number | null>(null);
 const NORMAL_COLOR = 0x3b82f6;
 const INITIAL_COLOR = 0xf59e0b;
 const SELECTED_COLOR = 0x22c55e;
+// The other end of a pair, picked with Ctrl+click.
+const PAIRED_COLOR = 0xa855f7;
 
 // An eye-shaped cursor (Unity's orbit cursor) as an inline SVG data URI.
 const EYE_CURSOR =
@@ -741,10 +823,31 @@ function onPointerUp(event: PointerEvent): void {
     const hitSphere = raycaster.intersectObjects(spheres, false)[0];
 
     if (hitSphere) {
-        selectNode(hitSphere.object.userData.localId as number);
-    } else {
-        deselect();
+        const id = hitSphere.object.userData.localId as number;
+
+        // Ctrl+click picks the other end of a pair, to create a rule between
+        // two nodes that the automatic linking would not connect (stairs).
+        if ((event.ctrlKey || event.metaKey) && selectedId.value !== null) {
+            pairSelection.value = id === selectedId.value ? null : id;
+            refreshColors();
+        } else {
+            selectNode(id);
+        }
+
+        return;
     }
+
+    // Clicking an edge cuts it (or restores it if it was already cut).
+    const hitEdge = raycaster.intersectObjects(edgeMeshes, false)[0];
+
+    if (hitEdge) {
+        const edge = hitEdge.object.userData.edge as { a: number; b: number };
+        toggleBlockedEdge(edge.a, edge.b);
+
+        return;
+    }
+
+    deselect();
 }
 
 // Highlight the node under the cursor and switch to a pointer cursor, so nodes
@@ -770,7 +873,11 @@ function onPointerHover(event: PointerEvent): void {
         refreshColors();
     }
 
-    setCursor(id !== null ? 'pointer' : 'default');
+    // Edges are clickable too (to cut or restore a link), so hint that.
+    const overEdge =
+        id === null && raycaster.intersectObjects(edgeMeshes, false).length > 0;
+
+    setCursor(id !== null || overEdge ? 'pointer' : 'default');
 }
 
 // Clear the hover highlight when the cursor leaves the canvas.
@@ -933,6 +1040,8 @@ function addEdgeCylinder(
     a: THREE.Vector3,
     b: THREE.Vector3,
     material: THREE.Material,
+    aId: number,
+    bId: number,
 ): void {
     const length = a.distanceTo(b);
     const radius = Math.max(modelSize * 0.0008, 0.006);
@@ -944,7 +1053,10 @@ function addEdgeCylinder(
         new THREE.Vector3(0, 1, 0),
         b.clone().sub(a).normalize(),
     );
+    // The pair behind this edge, so clicking it can cut or restore the link.
+    cylinder.userData.edge = { a: aId, b: bId };
     group.add(cylinder);
+    edgeMeshes.push(cylinder);
 }
 
 // Simulate the A* Point Graph: connect nodes within maxDistance that are not
@@ -959,20 +1071,29 @@ function computeGraph(): void {
 
     graphGroup = new THREE.Group();
     const edgeMaterial = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    // Cut by hand (a wall): drawn red so it stays visible and clickable to undo.
+    const blockedMaterial = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    // Forced by hand (stairs): drawn amber to tell it apart from an automatic link.
+    const forcedMaterial = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
 
     const nodes = localNodes.value.map((n) => ({
         id: n.localId,
         pos: new THREE.Vector3(n.position_x, n.position_y, n.position_z),
     }));
+    const positions = new Map(nodes.map((n) => [n.id, n.pos]));
     const maxDistance = graphParams.value.maxDistance;
     const maxY = graphParams.value.maxYDistance;
     const degree = new Map<number, number>();
+    // Pairs already drawn, so the forced pass below doesn't duplicate an edge.
+    const drawn = new Set<string>();
     let edges = 0;
 
     for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
             const a = nodes[i];
             const b = nodes[j];
+            const key = pairKey(a.id, b.id);
+            const override = overrideByPair.value.get(key);
             // Same math as the A* Point Graph: full 3D distance for maxDistance,
             // absolute Y difference for the per-axis Y limit. Both are AND, and a
             // pair that fails either one simply doesn't connect (no line drawn),
@@ -995,12 +1116,65 @@ function computeGraph(): void {
                 continue;
             }
 
-            addEdgeCylinder(graphGroup, a.pos, b.pos, edgeMaterial);
+            drawn.add(key);
+
+            // Filter 4: a hand-made rule wins over the automatic linking. The
+            // cut edge is still drawn (in red) so it can be clicked to restore.
+            if (override?.type === 'blocked') {
+                addEdgeCylinder(
+                    graphGroup,
+                    a.pos,
+                    b.pos,
+                    blockedMaterial,
+                    a.id,
+                    b.id,
+                );
+                continue;
+            }
+
+            addEdgeCylinder(
+                graphGroup,
+                a.pos,
+                b.pos,
+                override?.type === 'forced' ? forcedMaterial : edgeMaterial,
+                a.id,
+                b.id,
+            );
             addEdgeLabel(graphGroup, a.pos, b.pos);
             degree.set(a.id, (degree.get(a.id) ?? 0) + 1);
             degree.set(b.id, (degree.get(b.id) ?? 0) + 1);
             edges++;
         }
+    }
+
+    // Forced pairs that the filters above rejected (too far apart, or on
+    // different floors like a staircase): Unity links them anyway, so draw them.
+    for (const override of localOverrides.value) {
+        const key = pairKey(override.a, override.b);
+
+        if (override.type !== 'forced' || drawn.has(key)) {
+            continue;
+        }
+
+        const a = positions.get(override.a);
+        const b = positions.get(override.b);
+
+        if (!a || !b) {
+            continue;
+        }
+
+        addEdgeCylinder(
+            graphGroup,
+            a,
+            b,
+            forcedMaterial,
+            override.a,
+            override.b,
+        );
+        addEdgeLabel(graphGroup, a, b);
+        degree.set(override.a, (degree.get(override.a) ?? 0) + 1);
+        degree.set(override.b, (degree.get(override.b) ?? 0) + 1);
+        edges++;
     }
 
     scene.value!.add(graphGroup);
@@ -1072,11 +1246,14 @@ function clearGraph(): void {
         graphGroup = null;
     }
 
+    edgeMeshes = [];
     graphStats.value = null;
 }
 
 function selectNode(id: number): void {
     selectedId.value = id;
+    // Picking a new node starts a fresh pair.
+    pairSelection.value = null;
     const mesh = nodeMeshes.get(id);
 
     if (mesh) {
@@ -1088,6 +1265,7 @@ function selectNode(id: number): void {
 
 function deselect(): void {
     selectedId.value = null;
+    pairSelection.value = null;
     transform.value!.detach();
     refreshColors();
 }
@@ -1120,6 +1298,8 @@ function refreshColors(): void {
 
         if (id === selectedId.value) {
             base = SELECTED_COLOR;
+        } else if (id === pairSelection.value) {
+            base = PAIRED_COLOR;
         } else if (mesh.userData.isInitial) {
             base = INITIAL_COLOR;
         } else {
@@ -1223,11 +1403,20 @@ function toggleInitial(id: number): void {
 
 function deleteNode(id: number): void {
     localNodes.value = localNodes.value.filter((n) => n.localId !== id);
+    // A rule without both of its nodes is meaningless (the server cascades the
+    // same way when the node is removed through the sync).
+    localOverrides.value = localOverrides.value.filter(
+        (override) => override.a !== id && override.b !== id,
+    );
     const mesh = nodeMeshes.get(id);
 
     if (mesh) {
         scene.value!.remove(mesh);
         nodeMeshes.delete(id);
+    }
+
+    if (pairSelection.value === id) {
+        pairSelection.value = null;
     }
 
     if (selectedId.value === id) {
@@ -1281,6 +1470,9 @@ function saveNodes(): void {
         `/buildings/${props.building.id}/nodes/sync`,
         {
             nodes: localNodes.value.map((n) => ({
+                // Stable key the connection overrides below refer to, so the
+                // server can resolve pairs that involve brand new nodes.
+                local_id: n.localId,
                 // Positive localId means an existing DB node: send it so the
                 // server updates it in place and destination links are kept.
                 // New nodes have a negative temp id and send no id.
@@ -1293,6 +1485,12 @@ function saveNodes(): void {
                 // Only the initial node carries a heading; null for the rest.
                 heading: n.is_initial ? n.heading : null,
                 node_group_id: n.node_group_id,
+            })),
+            // Hand-made exceptions to the automatic linking, keyed by local_id.
+            connection_overrides: localOverrides.value.map((override) => ({
+                a: override.a,
+                b: override.b,
+                type: override.type,
             })),
         },
         {
@@ -1648,6 +1846,106 @@ defineExpose({
                             </span>
                         </p>
                     </div>
+                </div>
+
+                <!-- Manual connection rules -->
+                <div class="rounded-md border p-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium">Uniones manuales</span>
+                        <Waypoints class="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    <p
+                        class="mt-2 text-[10px] leading-relaxed text-muted-foreground"
+                    >
+                        Clic en una conexión para cortarla (pared). Para unir dos
+                        nodos que no se conectan solos (escalera), selecciona uno
+                        y haz <strong>Ctrl+clic</strong> en el otro.
+                    </p>
+
+                    <!-- Pair picked with Ctrl+click -->
+                    <div
+                        v-if="selectedId !== null && pairSelection !== null"
+                        class="mt-2 rounded border border-dashed p-2"
+                    >
+                        <p class="text-[11px]">
+                            {{ nodeName(selectedId) }} ·
+                            {{ nodeName(pairSelection) }}
+                        </p>
+                        <div class="mt-1.5 flex gap-1">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                class="h-6 flex-1 text-[10px]"
+                                @click="
+                                    setOverride(
+                                        selectedId,
+                                        pairSelection,
+                                        'blocked',
+                                    )
+                                "
+                            >
+                                Nunca unir
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                class="h-6 flex-1 text-[10px]"
+                                @click="
+                                    setOverride(
+                                        selectedId,
+                                        pairSelection,
+                                        'forced',
+                                    )
+                                "
+                            >
+                                Unir siempre
+                            </Button>
+                        </div>
+                    </div>
+
+                    <ul v-if="localOverrides.length" class="mt-2 space-y-1">
+                        <li
+                            v-for="override in localOverrides"
+                            :key="pairKey(override.a, override.b)"
+                            class="flex items-center justify-between gap-2 text-[11px]"
+                        >
+                            <span class="flex min-w-0 items-center gap-1.5">
+                                <span
+                                    class="h-2 w-2 shrink-0 rounded-full"
+                                    :class="
+                                        override.type === 'blocked'
+                                            ? 'bg-red-500'
+                                            : 'bg-amber-500'
+                                    "
+                                />
+                                <span class="truncate">
+                                    {{ nodeName(override.a) }} ·
+                                    {{ nodeName(override.b) }}
+                                </span>
+                            </span>
+                            <button
+                                type="button"
+                                class="shrink-0 text-muted-foreground hover:text-destructive"
+                                :title="
+                                    override.type === 'blocked'
+                                        ? 'Quitar corte'
+                                        : 'Quitar unión forzada'
+                                "
+                                @click="removeOverride(override.a, override.b)"
+                            >
+                                <Trash2 class="h-3 w-3" />
+                            </button>
+                        </li>
+                    </ul>
+                    <p
+                        v-else
+                        class="mt-2 text-[10px] text-muted-foreground italic"
+                    >
+                        Sin reglas manuales.
+                    </p>
                 </div>
 
                 <!-- Initial node heading -->
