@@ -210,7 +210,24 @@ const table = useVueTable({
             v-else
             class="flex h-40 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground"
         >
-            No se encontraron edificios.
+            <div class="flex flex-col items-center gap-3 text-center">
+                <template v-if="isFiltered">
+                    <p>No se encontraron edificios para esta búsqueda.</p>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="clearSearch"
+                    >
+                        Limpiar búsqueda
+                        <X class="ml-2 h-4 w-4" />
+                    </Button>
+                </template>
+
+                <p v-else>
+                    Todavía no hay edificios registrados.
+                </p>
+            </div>
         </div>
 
         <DataTablePagination
