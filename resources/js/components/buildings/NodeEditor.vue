@@ -1578,11 +1578,19 @@ function onKeyDown(event: KeyboardEvent): void {
         setCursor('orbit');
     }
 
-    if (event.key === 'w') {
+    const key = event.key.toLowerCase();
+
+    if ((event.ctrlKey || event.metaKey) && key === 's') {
+        event.preventDefault();
+        save();
+        return;
+    }
+
+    if (key === 'w') {
         transform.value?.setMode('translate');
-    } else if (event.key === 'e') {
+    } else if (key === 'e') {
         transform.value?.setMode('rotate');
-    } else if (event.key === 'r') {
+    } else if (key === 'r') {
         transform.value?.setMode('scale');
     } else if (event.key === 'Escape') {
         deselect();
