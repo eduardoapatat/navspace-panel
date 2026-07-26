@@ -97,7 +97,6 @@ defineOptions({
                                     id="name"
                                     name="name"
                                     required
-                                    autocomplete="organization"
                                     :default-value="building.name"
                                 />
                                 <InputError :message="errors.name" />
@@ -109,13 +108,8 @@ defineOptions({
                                     id="address"
                                     name="address"
                                     required
-                                    autocomplete="street-address"
                                     :default-value="building.address"
                                 />
-                                <p class="text-xs text-muted-foreground">
-                                    Incluye referencias útiles para facilitar la
-                                    ubicación del acceso principal.
-                                </p>
                                 <InputError :message="errors.address" />
                             </div>
 

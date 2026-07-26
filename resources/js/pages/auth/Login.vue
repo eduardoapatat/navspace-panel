@@ -54,12 +54,9 @@ defineProps<{
                     required
                     autofocus
                     :tabindex="1"
-                    autocomplete="username"
+                    autocomplete="email"
                     placeholder="Correo electrónico"
                 />
-                <p class="text-xs text-muted-foreground">
-                    Usa el correo con el que se registró tu cuenta.
-                </p>
                 <InputError :message="errors.email" />
             </div>
 

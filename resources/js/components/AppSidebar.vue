@@ -19,7 +19,7 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Espacios',
+        title: 'Edificios',
         href: buildingsIndex(),
         icon: Building2,
     },
@@ -34,7 +34,7 @@ const footerNavItems: NavItem[] = [];
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="buildingsIndex()" prefetch>
+                        <Link :href="buildingsIndex()">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>

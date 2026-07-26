@@ -23,8 +23,8 @@ class UpdateBuildingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'min:3', 'max:255'],
-            'address' => ['required', 'string', 'min:5', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:255'],
             'image' => ['nullable', 'image', 'max:5120'],
             'model' => ['nullable', 'file', 'extensions:glb', 'max:51200'],
             // Manual yaw override for the model (auto-detected on upload; this lets
