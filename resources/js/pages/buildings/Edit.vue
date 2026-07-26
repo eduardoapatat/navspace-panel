@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { Boxes, Trash2 } from '@lucide/vue';
-import { ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import BuildingController from '@/actions/App/Http/Controllers/BuildingController';
 import type {
     Building,
@@ -38,6 +38,30 @@ const props = defineProps<Props>();
 // a new file instead just replaces it (the backend prioritizes the upload).
 const removeImage = ref(false);
 const removeModel = ref(false);
+
+// Local object URL used only to preview a newly selected building photo.
+const imagePreviewUrl = ref<string | null>(null);
+
+function clearImagePreview(): void {
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value);
+        imagePreviewUrl.value = null;
+    }
+}
+
+function handleImageChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    clearImagePreview();
+
+    if (file) {
+        imagePreviewUrl.value = URL.createObjectURL(file);
+        removeImage.value = false;
+    }
+}
+
+onBeforeUnmount(clearImagePreview);
 
 defineOptions({
     layout: {
@@ -136,7 +160,7 @@ defineOptions({
                                         }}
                                     </Badge>
                                     <Button
-                                        v-if="building.image_url && !removeImage"
+                                        v-if="building.image_url && !removeImage && !imagePreviewUrl"
                                         type="button"
                                         variant="ghost"
                                         size="icon"
@@ -152,8 +176,18 @@ defineOptions({
                                     name="image"
                                     type="file"
                                     accept="image/*"
-                                    @change="removeImage = false"
+                                    @change="handleImageChange"
                                 />
+                                <div v-if="imagePreviewUrl" class="space-y-2">
+                                    <p class="text-xs font-medium text-muted-foreground">
+                                        Vista previa de la nueva foto
+                                    </p>
+                                    <img
+                                        :src="imagePreviewUrl"
+                                        alt="Vista previa de la nueva foto seleccionada"
+                                        class="h-32 w-48 rounded-md border object-cover"
+                                    />
+                                </div>
                                 <p class="text-xs text-muted-foreground">
                                     Opcional. Sube una imagen solo si quieres
                                     reemplazar la actual.

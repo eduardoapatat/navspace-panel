@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { onBeforeUnmount, ref } from 'vue';
 import BuildingController from '@/actions/App/Http/Controllers/BuildingController';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,29 @@ defineOptions({
         ],
     },
 });
+
+// Local object URL used only to preview the selected building photo.
+const imagePreviewUrl = ref<string | null>(null);
+
+function clearImagePreview(): void {
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value);
+        imagePreviewUrl.value = null;
+    }
+}
+
+function handleImageChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    clearImagePreview();
+
+    if (file) {
+        imagePreviewUrl.value = URL.createObjectURL(file);
+    }
+}
+
+onBeforeUnmount(clearImagePreview);
 </script>
 
 <template>
@@ -66,7 +90,17 @@ defineOptions({
 
             <div class="grid gap-2">
                 <Label for="image">Foto del edificio</Label>
-                <Input id="image" name="image" type="file" accept="image/*" />
+                <Input id="image" name="image" type="file" accept="image/*" @change="handleImageChange" />
+                <div v-if="imagePreviewUrl" class="space-y-2">
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Vista previa
+                    </p>
+                    <img
+                        :src="imagePreviewUrl"
+                        alt="Vista previa de la foto seleccionada"
+                        class="h-32 w-48 rounded-md border object-cover"
+                    />
+                </div>
                 <p class="text-xs text-muted-foreground">
                     Opcional. Imagen que representa el edificio (se muestra en el
                     panel y en el selector de Unity), máximo 5 MB.
