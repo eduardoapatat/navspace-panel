@@ -14,10 +14,9 @@ NavSpace se compone de **dos repositorios**:
 - **App del visor (repo Unity aparte):** corre en Meta Quest 3. Calibra el
   espacio físico con anclas espaciales, calcula rutas con A* y dibuja una línea
   de navegación que guía al usuario hasta su destino dentro del edificio real.
-- **Este repositorio (monolito Laravel):** el backend y el panel de
-  administración. Es la fuente de verdad de edificios, nodos de navegación y
-  destinos. Expone una API REST que consume la app de Unity y ofrece un editor
-  visual 3D para posicionar los nodos sobre el modelo del edificio.
+- **Este repositorio (monolito Laravel):** el backend y panel de
+  administración. Centraliza edificios, nodos y destinos, expone una API REST
+  para Unity e integra un editor visual 3D para ubicar nodos en el modelo.
 
 NavSpace es un CMS genérico de espacios navegables: el panel permite registrar
 cualquier espacio (edificio, casa, etc.) con su modelo 3D y sus nodos, y la app
