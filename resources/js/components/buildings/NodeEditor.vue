@@ -1496,6 +1496,9 @@ const headingSlider = computed<number[]>({
 
 // Persist the whole node set for this building (called after params are saved).
 function saveNodes(): void {
+    const normalizePosition = (value: number): number =>
+        Number(value.toFixed(4));
+
     router.put(
         `/buildings/${props.building.id}/nodes/sync`,
         {
@@ -1508,9 +1511,9 @@ function saveNodes(): void {
                 // New nodes have a negative temp id and send no id.
                 id: n.localId > 0 ? n.localId : null,
                 label: n.label || null,
-                position_x: n.position_x,
-                position_y: n.position_y,
-                position_z: n.position_z,
+                position_x: normalizePosition(n.position_x),
+                position_y: normalizePosition(n.position_y),
+                position_z: normalizePosition(n.position_z),
                 is_initial: n.is_initial,
                 // Only the initial node carries a heading; null for the rest.
                 heading: n.is_initial ? n.heading : null,
