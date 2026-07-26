@@ -9,8 +9,13 @@ use Illuminate\Support\Facades\Route;
 
 // Entry point: there is no landing or dashboard page. Guests go to login,
 // authenticated users go to the buildings list (the app's real home).
-Route::get('/', fn () => redirect()->route(auth()->check() ? 'buildings.index' : 'login'))
-    ->name('home');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return to_route('buildings.index');
+    }
+
+    return to_route('login');
+})->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // The 3D node editor for a building (dedicated full-screen page).
