@@ -31,6 +31,27 @@ de Unity tiene un selector que carga dinámicamente el espacio elegido.
 3. **Editor visual 3D** (Three.js) para colocar nodos de navegación haciendo
    clic sobre el modelo `.glb` del edificio.
 
+## Uso básico del panel
+
+Desde la sección **Edificios** se pueden crear y editar los espacios disponibles
+en NavSpace. La fotografía y el modelo 3D `.glb` son opcionales y pueden
+incorporarse al crear el edificio o posteriormente desde su pantalla de gestión.
+
+Al seleccionar una fotografía, el formulario muestra una vista previa local. En
+el caso del modelo 3D, se presenta el nombre y tamaño del archivo seleccionado.
+Estos recursos solo se almacenan o reemplazan al guardar el formulario.
+
+### Editor de nodos
+
+El editor 3D permite crear, seleccionar, transformar y eliminar nodos sobre el
+modelo del edificio. Su encabezado muestra la cantidad actual de nodos y avisa
+cuando existen cambios sin guardar.
+
+Los cambios pueden guardarse mediante el botón del encabezado o con `Ctrl+S` en
+Windows y Linux, y `Cmd+S` en macOS. Si se intenta cerrar o recargar la página
+con modificaciones pendientes, el navegador muestra una advertencia antes de
+abandonar el editor.
+
 ## Stack
 
 - **PHP 8.4** · **Laravel 13**
