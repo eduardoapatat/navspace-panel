@@ -1,10 +1,6 @@
 <script setup lang="ts" generic="TData">
-import {
-    CalendarDate,
-    
-    getLocalTimeZone
-} from '@internationalized/date';
-import type {DateValue} from '@internationalized/date';
+import { CalendarDate, getLocalTimeZone } from '@internationalized/date';
+import type { DateValue } from '@internationalized/date';
 import { CalendarIcon, XCircle } from '@lucide/vue';
 import type { Column } from '@tanstack/vue-table';
 import type { DateRange } from 'reka-ui';
@@ -53,8 +49,7 @@ function toIso(value: DateValue): string {
 /** Rango actual leído del filtro de la columna. */
 const range = computed<DateRange>(() => {
     const value = props.column?.getFilterValue() as
-        | [string, string]
-        | undefined;
+        [string, string] | undefined;
 
     return {
         start: value?.[0] ? toDateValue(value[0]) : undefined,
@@ -64,16 +59,14 @@ const range = computed<DateRange>(() => {
 
 const hasFilter = computed(() => {
     const value = props.column?.getFilterValue() as
-        | [string, string]
-        | undefined;
+        [string, string] | undefined;
 
     return Boolean(value?.[0] || value?.[1]);
 });
 
 const label = computed(() => {
     const value = props.column?.getFilterValue() as
-        | [string, string]
-        | undefined;
+        [string, string] | undefined;
 
     if (!value?.[0] && !value?.[1]) {
         return null;
