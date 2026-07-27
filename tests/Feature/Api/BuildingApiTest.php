@@ -25,8 +25,8 @@ it('returns a building with its nodes, groups and destinations', function () {
 
     $response->assertOk()
         ->assertJsonPath('data.name', 'Departamento Informática')
-        ->assertJsonCount(4, 'data.node_groups')
-        ->assertJsonCount(115, 'data.nodes')
-        ->assertJsonCount(9, 'data.destinations')
+        ->assertJsonCount(6, 'data.node_groups')
+        ->assertJsonCount(130, 'data.nodes')
+        ->assertJsonCount(21, 'data.destinations')
         ->assertJsonPath('data.destinations.0.display_name', 'Licancabur');
 });

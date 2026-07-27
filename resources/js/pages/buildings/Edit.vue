@@ -7,17 +7,11 @@ import type {
     Building,
     ScheduleTypeOption,
 } from '@/components/buildings/building';
-import DestinationsSection from '@/components/buildings/DestinationsSection.vue';
-import SpaceTypesSection from '@/components/buildings/SpaceTypesSection.vue';
+import SpacesDestinationsSection from '@/components/buildings/SpacesDestinationsSection.vue';
 import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -102,40 +96,44 @@ defineOptions({
             </Button>
         </div>
 
-        <!-- Building properties (name, address, photo, .glb model). -->
-        <Card>
-            <CardHeader>
-                <CardTitle>Propiedades</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Form
-                    v-bind="BuildingController.update.form(building.id)"
-                    class="flex flex-col gap-4"
-                    v-slot="{ errors, processing }"
-                >
-                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <div class="flex w-full flex-col gap-4">
-                            <div class="flex flex-col gap-2">
-                                <Label for="name">Nombre</Label>
-                                <Input
-                                    id="name"
-                                    name="name"
-                                    required
-                                    :default-value="building.name"
-                                />
-                                <InputError :message="errors.name" />
-                            </div>
+        <!-- Building properties on the left, space types + destinations on the
+             right. They stack on narrow screens; items start-aligned so their
+             different heights don't stretch each other. -->
+        <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+            <!-- Building properties (name, address, photo, .glb model). -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Propiedades</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Form
+                        v-bind="BuildingController.update.form(building.id)"
+                        class="flex flex-col gap-4"
+                        v-slot="{ errors, processing }"
+                    >
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                            <div class="flex w-full flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <Label for="name">Nombre</Label>
+                                    <Input
+                                        id="name"
+                                        name="name"
+                                        required
+                                        :default-value="building.name"
+                                    />
+                                    <InputError :message="errors.name" />
+                                </div>
 
-                            <div class="flex flex-col gap-2">
-                                <Label for="address">Dirección</Label>
-                                <Input
-                                    id="address"
-                                    name="address"
-                                    required
-                                    :default-value="building.address"
-                                />
-                                <InputError :message="errors.address" />
-                            </div>
+                                <div class="flex flex-col gap-2">
+                                    <Label for="address">Dirección</Label>
+                                    <Input
+                                        id="address"
+                                        name="address"
+                                        required
+                                        :default-value="building.address"
+                                    />
+                                    <InputError :message="errors.address" />
+                                </div>
 
                             <div class="flex flex-col gap-2">
                                 <Label for="image">Foto del edificio</Label>
@@ -214,118 +212,126 @@ defineOptions({
                             </div>
                         </div>
 
-                        <div class="flex w-full flex-col gap-4">
-                            <div class="flex flex-col gap-2">
-                                <Label for="model">Modelo 3D (.glb)</Label>
-                                <div class="flex items-center gap-2">
-                                    <Badge
-                                        :variant="
-                                            building.model_url && !removeModel
-                                                ? 'default'
-                                                : 'secondary'
-                                        "
+                            <div class="flex w-full flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <Label for="model">Modelo 3D (.glb)</Label>
+                                    <div class="flex items-center gap-2">
+                                        <Badge
+                                            :variant="
+                                                building.model_url &&
+                                                !removeModel
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            "
+                                        >
+                                            {{
+                                                building.model_url &&
+                                                !removeModel
+                                                    ? 'Modelo cargado'
+                                                    : 'Sin modelo'
+                                            }}
+                                        </Badge>
+                                        <Button
+                                            v-if="
+                                                building.model_url &&
+                                                !removeModel
+                                            "
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-8 w-8 text-destructive"
+                                            @click="removeModel = true"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            <span class="sr-only"
+                                                >Quitar modelo</span
+                                            >
+                                        </Button>
+                                    </div>
+                                    <Input
+                                        id="model"
+                                        name="model"
+                                        type="file"
+                                        accept=".glb"
+                                        @change="removeModel = false"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        Opcional. Sube un .glb solo si quieres
+                                        reemplazar el actual.
+                                    </p>
+                                    <p
+                                        v-if="removeModel"
+                                        class="text-xs text-muted-foreground"
                                     >
-                                        {{
-                                            building.model_url && !removeModel
-                                                ? 'Modelo cargado'
-                                                : 'Sin modelo'
-                                        }}
-                                    </Badge>
-                                    <Button
-                                        v-if="building.model_url && !removeModel"
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-8 w-8 text-destructive"
-                                        @click="removeModel = true"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        <span class="sr-only">Quitar modelo</span>
-                                    </Button>
-                                </div>
-                                <Input
-                                    id="model"
-                                    name="model"
-                                    type="file"
-                                    accept=".glb"
-                                    @change="removeModel = false"
-                                />
-                                <p class="text-xs text-muted-foreground">
-                                    Opcional. Sube un .glb solo si quieres
-                                    reemplazar el actual.
-                                </p>
-                                <p
-                                    v-if="removeModel"
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    El modelo se quitará al guardar.
-                                    <button
-                                        type="button"
-                                        class="underline"
-                                        @click="removeModel = false"
-                                    >
-                                        Deshacer
-                                    </button>
-                                </p>
-                                <input
-                                    type="hidden"
-                                    name="remove_model"
-                                    :value="removeModel ? '1' : '0'"
-                                />
-                                <InputError :message="errors.model" />
+                                        El modelo se quitará al guardar.
+                                        <button
+                                            type="button"
+                                            class="underline"
+                                            @click="removeModel = false"
+                                        >
+                                            Deshacer
+                                        </button>
+                                    </p>
+                                    <input
+                                        type="hidden"
+                                        name="remove_model"
+                                        :value="removeModel ? '1' : '0'"
+                                    />
+                                    <InputError :message="errors.model" />
 
-                                <!-- Yaw correction. Auto-set from the exporter on
+                                    <!-- Yaw correction. Auto-set from the exporter on
                                      upload (Blender glb import 180° rotated in
                                      Unity); override only if a model comes out
                                      turned. -->
-                                <div
-                                    v-if="building.model_url && !removeModel"
-                                    class="mt-1 flex flex-col gap-1"
-                                >
-                                    <Label for="model_yaw" class="text-xs">
-                                        Corrección de orientación (Unity)
-                                    </Label>
-                                    <select
-                                        id="model_yaw"
-                                        name="model_yaw"
-                                        class="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                                    <div
+                                        v-if="
+                                            building.model_url && !removeModel
+                                        "
+                                        class="mt-1 flex flex-col gap-1"
                                     >
-                                        <option
-                                            v-for="deg in [0, 90, 180, 270]"
-                                            :key="deg"
-                                            :value="deg"
-                                            :selected="building.model_yaw === deg"
+                                        <Label for="model_yaw" class="text-xs">
+                                            Corrección de orientación (Unity)
+                                        </Label>
+                                        <select
+                                            id="model_yaw"
+                                            name="model_yaw"
+                                            class="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
                                         >
-                                            {{ deg }}°
-                                        </option>
-                                    </select>
-                                    <p class="text-xs text-muted-foreground">
-                                        Se detecta sola al subir el modelo
-                                        (Blender = 180°). Cámbiala solo si el
-                                        edificio sale girado en la app.
-                                    </p>
+                                            <option
+                                                v-for="deg in [0, 90, 180, 270]"
+                                                :key="deg"
+                                                :value="deg"
+                                                :selected="
+                                                    building.model_yaw === deg
+                                                "
+                                            >
+                                                {{ deg }}°
+                                            </option>
+                                        </select>
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Se detecta sola al subir el modelo
+                                            (Blender = 180°). Cámbiala solo si
+                                            el edificio sale girado en la app.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex justify-end">
-                        <Button type="submit" :disabled="processing">
-                            Guardar cambios
-                        </Button>
-                    </div>
-                </Form>
-            </CardContent>
-        </Card>
+                        <div class="flex justify-end">
+                            <Button type="submit" :disabled="processing">
+                                Guardar cambios
+                            </Button>
+                        </div>
+                    </Form>
+                </CardContent>
+            </Card>
 
-        <!-- Destinations on the left, space types on the right. They stack on
-             narrow screens. Items start-aligned so different heights don't stretch. -->
-        <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-            <DestinationsSection
+            <SpacesDestinationsSection
                 :building="building"
                 :schedule-type-options="scheduleTypeOptions"
             />
-
-            <SpaceTypesSection :building="building" />
         </div>
     </div>
 </template>

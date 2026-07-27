@@ -38,8 +38,7 @@ const sortableColumns = computed(() =>
         .filter((column) => column.getCanSort())
         .map((column) => {
             const meta = column.columnDef.meta as
-                | { label?: string }
-                | undefined;
+                { label?: string } | undefined;
 
             return { id: column.id, label: meta?.label ?? column.id };
         }),

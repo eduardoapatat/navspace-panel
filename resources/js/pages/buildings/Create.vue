@@ -102,8 +102,8 @@ onBeforeUnmount(clearImagePreview);
                     />
                 </div>
                 <p class="text-xs text-muted-foreground">
-                    Opcional. Imagen que representa el edificio (se muestra en el
-                    panel y en el selector de Unity), máximo 5 MB.
+                    Opcional. Imagen que representa el edificio (se muestra en
+                    el panel y en el selector de Unity), máximo 5 MB.
                 </p>
                 <InputError :message="errors.image" />
             </div>

@@ -10,9 +10,9 @@ it('seeds the DICI building with its group, space type and destinations', functi
     $building = Building::where('name', 'Departamento Informática')->first();
 
     expect($building)->not->toBeNull()
-        ->and($building->nodeGroups)->toHaveCount(4)
+        ->and($building->nodeGroups)->toHaveCount(6)
         ->and($building->spaceTypes->pluck('name'))->toContain('Salas')
-        ->and(Destination::count())->toBe(9);
+        ->and(Destination::count())->toBe(21);
 });
 
 it('seeds Licancabur and Socompa with their real Unity positions', function () {

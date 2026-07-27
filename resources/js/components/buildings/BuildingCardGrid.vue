@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { ArrowDownAZ, ArrowUpAZ, Search, X } from '@lucide/vue';
-import {
-    getCoreRowModel,
-    useVueTable
-    
-} from '@tanstack/vue-table';
+import { getCoreRowModel, useVueTable } from '@tanstack/vue-table';
 import type { PaginationState, SortingState } from '@tanstack/vue-table';
-import type {ColumnDef} from '@tanstack/vue-table';
+import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, ref } from 'vue';
 import type { Building } from '@/components/buildings/building';
 import BuildingCard from '@/components/buildings/BuildingCard.vue';
@@ -147,7 +143,7 @@ const table = useVueTable({
             <div class="flex flex-1 items-center gap-2">
                 <div class="relative w-full max-w-xs">
                     <Search
-                        class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                        class="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <Input
                         :model-value="search"
@@ -169,7 +165,10 @@ const table = useVueTable({
 
             <div class="flex items-center gap-2">
                 <span class="text-sm text-muted-foreground">Ordenar por</span>
-                <Select :model-value="sortBy" @update:model-value="onSortChange">
+                <Select
+                    :model-value="sortBy"
+                    @update:model-value="onSortChange"
+                >
                     <SelectTrigger class="h-9 w-44">
                         <SelectValue />
                     </SelectTrigger>

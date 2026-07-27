@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import {
     Check,
     Compass,
     Copy,
     Info,
     Pencil,
+    Plus,
     RotateCcw,
+    SlidersHorizontal,
     Trash2,
     Waypoints,
 } from '@lucide/vue';
@@ -23,11 +25,12 @@ import {
     shallowRef,
     watch,
 } from 'vue';
+import NodeGroupController from '@/actions/App/Http/Controllers/NodeGroupController';
 import type {
     Building,
     ConnectionOverrideType,
 } from '@/components/buildings/building';
-import NodeGroupsPanel from '@/components/buildings/NodeGroupsPanel.vue';
+import InputError from '@/components/InputError.vue';
 import {
     Accordion,
     AccordionContent,
@@ -37,12 +40,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import {
     Tooltip,
@@ -102,25 +113,25 @@ function stopEditingLabel(): void {
     editingLabelId.value = null;
 }
 
-// Card DOM elements by localId, so we can scroll the selected one into view.
-const cardEls = new Map<number, HTMLElement>();
-function registerCard(id: number, el: unknown): void {
-    if (el instanceof HTMLElement) {
-        cardEls.set(id, el);
-    } else {
-        cardEls.delete(id);
-    }
-}
-
-// When a node gets selected (e.g. clicked in the 3D scene), scroll its card
-// into view in the side list.
-watch(selectedId, async (id) => {
+// When a node gets selected (e.g. clicked in the 3D scene), expand its group so
+// its card renders and shows the selected highlight. No auto-scroll on purpose:
+// with many nodes in a group it was unreliable, and highlighting is enough.
+watch(selectedId, (id) => {
     if (id === null) {
         return;
     }
 
-    await nextTick();
-    cardEls.get(id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const node = localNodes.value.find((n) => n.localId === id);
+
+    if (!node) {
+        return;
+    }
+
+    const key = sectionKeyOfNode(node);
+
+    if (!openSections.value.includes(key)) {
+        openSections.value = [...openSections.value, key];
+    }
 });
 
 // The editable set of nodes. Seeded once from props; never overwritten by
@@ -253,13 +264,93 @@ function groupKey(id: number | null): string {
     return id === null ? 'none' : String(id);
 }
 
-// Groups start expanded; the accordion manages open/closed state from here on.
-const defaultOpenSections = groupedNodes.value.map((s) => groupKey(s.id));
+// Open accordion sections (group keys). Starts empty so all groups are collapsed;
+// selecting a node in the 3D scene opens its group (see the selectedId watch).
+const openSections = ref<string[]>([]);
+
+// Accordion key of the section a node lives in: its group when that group still
+// exists, otherwise the "Sin grupo" bucket. Mirrors the grouping in groupedNodes.
+function sectionKeyOfNode(node: LocalNode): string {
+    const gid = node.node_group_id;
+    const inRealGroup =
+        gid !== null && nodeGroups.value.some((g) => g.id === gid);
+
+    return inRealGroup ? String(gid) : 'none';
+}
+
+// Group create/edit dialog, managed inline from the accordion so groups are
+// handled where their nodes live (no separate CRUD panel). Node-to-group
+// assignment still happens on each node card.
+const groupDialogOpen = ref(false);
+// Id of the group being edited; null means we are creating a new one.
+const editingGroupId = ref<number | null>(null);
+const groupForm = useForm({ name: '' });
+
+function openCreateGroup(): void {
+    editingGroupId.value = null;
+    groupForm.reset();
+    groupForm.clearErrors();
+    groupDialogOpen.value = true;
+}
+
+function openEditGroup(id: number, name: string): void {
+    editingGroupId.value = id;
+    groupForm.clearErrors();
+    groupForm.name = name;
+    groupDialogOpen.value = true;
+}
+
+function submitGroup(): void {
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            groupDialogOpen.value = false;
+            editingGroupId.value = null;
+            groupForm.reset();
+        },
+    };
+
+    if (editingGroupId.value !== null) {
+        groupForm.put(
+            NodeGroupController.update(editingGroupId.value).url,
+            options,
+        );
+    } else {
+        groupForm.post(
+            NodeGroupController.store(props.building.id).url,
+            options,
+        );
+    }
+}
+
+function destroyGroup(id: number, name: string): void {
+    if (
+        !confirm(
+            `¿Eliminar el grupo "${name}"? Sus nodos y destinos quedarán sin agrupar.`,
+        )
+    ) {
+        return;
+    }
+
+    router.delete(NodeGroupController.destroy(id).url, {
+        preserveScroll: true,
+    });
+}
+
+// Position of each node in the full list, precomputed so nodeNumber() is O(1).
+// Without this, rendering a section with many cards would call indexOf() per
+// card, turning the render into O(n²).
+const nodeIndexById = computed(() => {
+    const map = new Map<number, number>();
+    localNodes.value.forEach((node, index) => map.set(node.localId, index));
+
+    return map;
+});
 
 // Stable display number per node (its position in the full list), used as the
 // fallback name when a node has no label — unique regardless of grouping.
 function nodeNumber(node: LocalNode): number {
-    return localNodes.value.indexOf(node) + 1;
+    return (nodeIndexById.value.get(node.localId) ?? 0) + 1;
 }
 
 let nextTempId = -1;
@@ -275,6 +366,16 @@ const pointer = new THREE.Vector2();
 // Frame delta (seconds) for camera-controls easing, timed manually to avoid the
 // deprecated THREE.Clock.
 let lastFrameTime = performance.now();
+
+// On-demand rendering: the loop only draws while something is changing, instead
+// of a constant 60 FPS. requestRender() keeps drawing for a short window so the
+// change (and any camera easing that follows) is shown; the loop then idles.
+// Camera motion and gizmo dragging are detected in animate() directly. Starts
+// with a window so the first frames (model load, initial framing) always draw.
+let renderUntil = performance.now() + 1500;
+function requestRender(): void {
+    renderUntil = performance.now() + 300;
+}
 
 // The loaded building model, used as the raycasting target.
 let modelRoot: THREE.Object3D | null = null;
@@ -676,6 +777,8 @@ function buildHeadingArrow(): void {
 // Place the arrow over the initial node and orient it. Hidden when there is no
 // initial node (nothing to anchor/orient from).
 function updateHeadingArrow(): void {
+    requestRender();
+
     if (!headingArrow) {
         return;
     }
@@ -1063,6 +1166,7 @@ function addEdgeCylinder(
 // Simulate the A* Point Graph: connect nodes within maxDistance that are not
 // separated by a wall, and draw the edges as a preview (never persisted).
 function computeGraph(): void {
+    requestRender();
     clearGraph();
 
     // When the preview is toggled off, don't draw lines or compute stats.
@@ -1285,6 +1389,7 @@ function onGizmoMove(): void {
         node.position_y = mesh.position.y;
         node.position_z = mesh.position.z;
         markDirty();
+        requestRender();
     }
 }
 
@@ -1292,6 +1397,8 @@ function onGizmoMove(): void {
 // keeps that base color but lightens it (typical hover feedback), for any state
 // including the initial (mustard) node.
 function refreshColors(): void {
+    requestRender();
+
     for (const [id, mesh] of nodeMeshes) {
         const material = mesh.material as THREE.MeshStandardMaterial;
 
@@ -1547,6 +1654,7 @@ function onResize(): void {
     camera.value.updateProjectionMatrix();
     // updateStyle=false so the canvas keeps its CSS-driven 100% size.
     renderer.value.setSize(host.clientWidth, host.clientHeight, false);
+    requestRender();
 }
 
 // True when the user is typing in a form field, so editor shortcuts must not
@@ -1608,10 +1716,15 @@ function animate(): void {
     const now = performance.now();
     const delta = (now - lastFrameTime) / 1000;
     lastFrameTime = now;
-    orbit.value?.update(delta);
-    renderer.value!.render(scene.value!, camera.value!);
-}
+    // update() returns true while the camera is moving/easing.
+    const cameraMoved = orbit.value?.update(delta) ?? false;
 
+    // Draw only when needed: camera in motion, a node being dragged, or within a
+    // requestRender() window. Idle otherwise, to save CPU/GPU.
+    if (cameraMoved || transform.value?.dragging || now < renderUntil) {
+        renderer.value!.render(scene.value!, camera.value!);
+    }
+}
 
 onMounted(() => {
     initScene();
@@ -1771,282 +1884,307 @@ defineExpose({
 
         <!-- RIGHT column: scene config on top, node config below. -->
         <div class="flex h-full min-h-0 w-72 shrink-0 flex-col gap-3">
-            <!-- Scene config: A* simulation + initial orientation, one row. -->
-            <p class="text-sm font-medium">Configuración de escena</p>
-            <p
-                v-if="initialCount === 0 && localNodes.length"
-                class="rounded bg-slate-500/10 px-2 py-1 text-xs text-muted-foreground"
-            >
-                Marca un nodo como inicial (★) para la calibración.
-            </p>
-
-            <div class="flex flex-col gap-2">
-                <!-- A* graph simulation (preview only) -->
-                <div class="rounded-md border p-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium">
-                            Simular grafo (A*)
-                        </span>
-                        <div class="flex items-center gap-2">
-                            <label
-                                class="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                            >
-                                <Checkbox v-model="showGraph" />
-                                Ver grafo
-                            </label>
-                            <Waypoints class="h-4 w-4 text-muted-foreground" />
-                        </div>
-                    </div>
-                    <div class="mt-2 space-y-2">
-                        <label
-                            class="flex items-center justify-between gap-2 text-xs"
-                        >
-                            <span
-                                class="flex items-center gap-1 text-muted-foreground"
-                            >
-                                Distancia máx.
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <button
-                                                type="button"
-                                                class="text-muted-foreground/70 hover:text-muted-foreground"
-                                                @click.prevent
-                                            >
-                                                <Info class="h-3 w-3" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent class="max-w-52">
-                                            Distancia máxima entre dos nodos
-                                            para conectarlos. Si están más lejos
-                                            que esto, la ruta no los une.
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </span>
-                            <input
-                                v-model.number="graphParams.maxDistance"
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                class="w-20 rounded border bg-background px-1 py-0.5 font-mono text-[11px]"
-                            />
-                        </label>
-                        <label
-                            class="flex items-center justify-between gap-2 text-xs"
-                        >
-                            <span
-                                class="flex items-center gap-1 text-muted-foreground"
-                            >
-                                Distancia máx. Y
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <button
-                                                type="button"
-                                                class="text-muted-foreground/70 hover:text-muted-foreground"
-                                                @click.prevent
-                                            >
-                                                <Info class="h-3 w-3" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent class="max-w-52">
-                                            Evita que la ruta salte entre pisos.
-                                            Ponla menor que la altura de un
-                                            piso.
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </span>
-                            <input
-                                v-model.number="graphParams.maxYDistance"
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                class="w-20 rounded border bg-background px-1 py-0.5 font-mono text-[11px]"
-                            />
-                        </label>
-                        <p
-                            v-if="showGraph && graphStats"
-                            class="text-[11px] text-muted-foreground"
-                        >
-                            {{ graphStats.edges }} conexiones ·
-                            <span
-                                :class="
-                                    graphStats.isolated
-                                        ? 'text-amber-600'
-                                        : 'text-green-600'
-                                "
-                            >
-                                {{ graphStats.isolated }} aislados
-                            </span>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Manual connection rules -->
-                <div class="rounded-md border p-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium">Uniones manuales</span>
-                        <Waypoints class="h-4 w-4 text-muted-foreground" />
-                    </div>
-
+            <!-- Scene config sits in a popover to keep the panel compact. -->
+            <Popover>
+                <PopoverTrigger as-child>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="w-full justify-start"
+                    >
+                        <SlidersHorizontal class="mr-2 h-4 w-4" />
+                        Configuración de escena
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                    align="start"
+                    :side-offset="6"
+                    class="flex max-h-[75vh] w-72 flex-col gap-2 overflow-y-auto"
+                >
                     <p
-                        class="mt-2 text-[10px] leading-relaxed text-muted-foreground"
+                        v-if="initialCount === 0 && localNodes.length"
+                        class="rounded bg-slate-500/10 px-2 py-1 text-xs text-muted-foreground"
                     >
-                        Clic en una conexión para cortarla (pared). Para unir dos
-                        nodos que no se conectan solos (escalera), selecciona uno
-                        y haz <strong>Ctrl+clic</strong> en el otro.
+                        Marca un nodo como inicial (★) para la calibración.
                     </p>
-
-                    <!-- Pair picked with Ctrl+click -->
-                    <div
-                        v-if="selectedId !== null && pairSelection !== null"
-                        class="mt-2 rounded border border-dashed p-2"
-                    >
-                        <p class="text-[11px]">
-                            {{ nodeName(selectedId) }} ·
-                            {{ nodeName(pairSelection) }}
-                        </p>
-                        <div class="mt-1.5 flex gap-1">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                class="h-6 flex-1 text-[10px]"
-                                @click="
-                                    setOverride(
-                                        selectedId,
-                                        pairSelection,
-                                        'blocked',
-                                    )
-                                "
-                            >
-                                Nunca unir
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                class="h-6 flex-1 text-[10px]"
-                                @click="
-                                    setOverride(
-                                        selectedId,
-                                        pairSelection,
-                                        'forced',
-                                    )
-                                "
-                            >
-                                Unir siempre
-                            </Button>
+                    <!-- A* graph simulation (preview only) -->
+                    <div class="rounded-md border p-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium">
+                                Simular grafo (A*)
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <label
+                                    class="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                                >
+                                    <Checkbox v-model="showGraph" />
+                                    Ver grafo
+                                </label>
+                                <Waypoints
+                                    class="h-4 w-4 text-muted-foreground"
+                                />
+                            </div>
                         </div>
-                    </div>
-
-                    <ul v-if="localOverrides.length" class="mt-2 space-y-1">
-                        <li
-                            v-for="override in localOverrides"
-                            :key="pairKey(override.a, override.b)"
-                            class="flex items-center justify-between gap-2 text-[11px]"
-                        >
-                            <span class="flex min-w-0 items-center gap-1.5">
+                        <div class="mt-2 space-y-2">
+                            <label
+                                class="flex items-center justify-between gap-2 text-xs"
+                            >
                                 <span
-                                    class="h-2 w-2 shrink-0 rounded-full"
-                                    :class="
-                                        override.type === 'blocked'
-                                            ? 'bg-red-500'
-                                            : 'bg-amber-500'
-                                    "
-                                />
-                                <span class="truncate">
-                                    {{ nodeName(override.a) }} ·
-                                    {{ nodeName(override.b) }}
+                                    class="flex items-center gap-1 text-muted-foreground"
+                                >
+                                    Distancia máx.
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <button
+                                                    type="button"
+                                                    class="text-muted-foreground/70 hover:text-muted-foreground"
+                                                    @click.prevent
+                                                >
+                                                    <Info class="h-3 w-3" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent class="max-w-52">
+                                                Distancia máxima entre dos nodos
+                                                para conectarlos. Si están más
+                                                lejos que esto, la ruta no los
+                                                une.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </span>
-                            </span>
-                            <button
-                                type="button"
-                                class="shrink-0 text-muted-foreground hover:text-destructive"
-                                :title="
-                                    override.type === 'blocked'
-                                        ? 'Quitar corte'
-                                        : 'Quitar unión forzada'
-                                "
-                                @click="removeOverride(override.a, override.b)"
-                            >
-                                <Trash2 class="h-3 w-3" />
-                            </button>
-                        </li>
-                    </ul>
-                    <p
-                        v-else
-                        class="mt-2 text-[10px] text-muted-foreground italic"
-                    >
-                        Sin reglas manuales.
-                    </p>
-                </div>
-
-                <!-- Initial node heading -->
-                <div class="rounded-md border p-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium">
-                            Orientación inicial
-                        </span>
-                        <div class="flex items-center gap-2">
-                            <label
-                                class="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                            >
-                                <Checkbox v-model="showHeadingArrow" />
-                                Ver flecha
+                                <input
+                                    v-model.number="graphParams.maxDistance"
+                                    type="number"
+                                    step="0.5"
+                                    min="0"
+                                    class="w-20 rounded border bg-background px-1 py-0.5 font-mono text-[11px]"
+                                />
                             </label>
-                            <Compass class="h-4 w-4 text-muted-foreground" />
+                            <label
+                                class="flex items-center justify-between gap-2 text-xs"
+                            >
+                                <span
+                                    class="flex items-center gap-1 text-muted-foreground"
+                                >
+                                    Distancia máx. Y
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <button
+                                                    type="button"
+                                                    class="text-muted-foreground/70 hover:text-muted-foreground"
+                                                    @click.prevent
+                                                >
+                                                    <Info class="h-3 w-3" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent class="max-w-52">
+                                                Evita que la ruta salte entre
+                                                pisos. Ponla menor que la altura
+                                                de un piso.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </span>
+                                <input
+                                    v-model.number="graphParams.maxYDistance"
+                                    type="number"
+                                    step="0.5"
+                                    min="0"
+                                    class="w-20 rounded border bg-background px-1 py-0.5 font-mono text-[11px]"
+                                />
+                            </label>
+                            <p
+                                v-if="showGraph && graphStats"
+                                class="text-[11px] text-muted-foreground"
+                            >
+                                {{ graphStats.edges }} conexiones ·
+                                <span
+                                    :class="
+                                        graphStats.isolated
+                                            ? 'text-amber-600'
+                                            : 'text-green-600'
+                                    "
+                                >
+                                    {{ graphStats.isolated }} aislados
+                                </span>
+                            </p>
                         </div>
                     </div>
 
-                    <p
-                        v-if="!initialNode"
-                        class="mt-2 text-[10px] leading-relaxed text-muted-foreground"
-                    >
-                        Marca un nodo como inicial (★) para definir hacia dónde
-                        mira al calibrar. La flecha aparecerá sobre ese nodo.
-                    </p>
-
-                    <div v-else class="mt-2 space-y-2">
-                        <p
-                            class="text-[10px] leading-relaxed text-muted-foreground"
-                        >
-                            Gira la flecha naranja (sobre el nodo inicial) hacia
-                            donde mira el usuario al calibrar. Se guarda con los
-                            nodos.
-                        </p>
-                        <div class="flex items-center gap-2">
-                            <Slider
-                                v-model="headingSlider"
-                                :min="0"
-                                :max="360"
-                                :step="1"
-                                class="flex-1"
-                            />
-                            <div class="flex items-center gap-1">
-                                <input
-                                    v-model.number="heading"
-                                    type="number"
-                                    min="0"
-                                    max="360"
-                                    step="1"
-                                    class="w-14 rounded border bg-background px-1 py-0.5 font-mono text-[11px]"
+                    <!-- Initial node heading -->
+                    <div class="rounded-md border p-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium">
+                                Orientación inicial
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <label
+                                    class="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                                >
+                                    <Checkbox v-model="showHeadingArrow" />
+                                    Ver flecha
+                                </label>
+                                <Compass
+                                    class="h-4 w-4 text-muted-foreground"
                                 />
-                                <span class="text-[11px] text-muted-foreground">
-                                    °
-                                </span>
+                            </div>
+                        </div>
+
+                        <p
+                            v-if="!initialNode"
+                            class="mt-2 text-[10px] leading-relaxed text-muted-foreground"
+                        >
+                            Marca un nodo como inicial (★) para definir hacia
+                            dónde mira al calibrar. La flecha aparecerá sobre
+                            ese nodo.
+                        </p>
+
+                        <div v-else class="mt-2 space-y-2">
+                            <p
+                                class="text-[10px] leading-relaxed text-muted-foreground"
+                            >
+                                Gira la flecha naranja (sobre el nodo inicial)
+                                hacia donde mira el usuario al calibrar. Se
+                                guarda con los nodos.
+                            </p>
+                            <div class="flex items-center gap-2">
+                                <Slider
+                                    v-model="headingSlider"
+                                    :min="0"
+                                    :max="360"
+                                    :step="1"
+                                    class="flex-1"
+                                />
+                                <div class="flex items-center gap-1">
+                                    <input
+                                        v-model.number="heading"
+                                        type="number"
+                                        min="0"
+                                        max="360"
+                                        step="1"
+                                        class="w-14 rounded border bg-background px-1 py-0.5 font-mono text-[11px]"
+                                    />
+                                    <span
+                                        class="text-[11px] text-muted-foreground"
+                                    >
+                                        °
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </PopoverContent>
+            </Popover>
+
+            <!-- Manual connections: their own panel; the list is height-limited
+                 and scrolls so many rules don't push the node list down. -->
+            <div class="rounded-md border p-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium">Uniones manuales</span>
+                    <Waypoints class="h-4 w-4 text-muted-foreground" />
                 </div>
+
+                <p
+                    class="mt-2 text-[10px] leading-relaxed text-muted-foreground"
+                >
+                    Clic en una conexión para cortarla (pared). Para unir dos
+                    nodos que no se conectan solos (escalera), selecciona uno y
+                    haz <strong>Ctrl+clic</strong> en el otro.
+                </p>
+
+                <!-- Pair picked with Ctrl+click -->
+                <div
+                    v-if="selectedId !== null && pairSelection !== null"
+                    class="mt-2 rounded border border-dashed p-2"
+                >
+                    <p class="text-[11px]">
+                        {{ nodeName(selectedId) }} ·
+                        {{ nodeName(pairSelection) }}
+                    </p>
+                    <div class="mt-1.5 flex gap-1">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            class="h-6 flex-1 text-[10px]"
+                            @click="
+                                setOverride(
+                                    selectedId,
+                                    pairSelection,
+                                    'blocked',
+                                )
+                            "
+                        >
+                            Nunca unir
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            class="h-6 flex-1 text-[10px]"
+                            @click="
+                                setOverride(selectedId, pairSelection, 'forced')
+                            "
+                        >
+                            Unir siempre
+                        </Button>
+                    </div>
+                </div>
+
+                <ul
+                    v-if="localOverrides.length"
+                    class="mt-2 max-h-56 space-y-1 overflow-y-auto pr-1"
+                >
+                    <li
+                        v-for="override in localOverrides"
+                        :key="pairKey(override.a, override.b)"
+                        class="flex items-center justify-between gap-2 text-[11px]"
+                    >
+                        <span class="flex min-w-0 items-center gap-1.5">
+                            <span
+                                class="h-2 w-2 shrink-0 rounded-full"
+                                :class="
+                                    override.type === 'blocked'
+                                        ? 'bg-red-500'
+                                        : 'bg-amber-500'
+                                "
+                            />
+                            <span class="truncate">
+                                {{ nodeName(override.a) }} ·
+                                {{ nodeName(override.b) }}
+                            </span>
+                        </span>
+                        <button
+                            type="button"
+                            class="shrink-0 text-muted-foreground hover:text-destructive"
+                            :title="
+                                override.type === 'blocked'
+                                    ? 'Quitar corte'
+                                    : 'Quitar unión forzada'
+                            "
+                            @click="removeOverride(override.a, override.b)"
+                        >
+                            <Trash2 class="h-3 w-3" />
+                        </button>
+                    </li>
+                </ul>
+                <p v-else class="mt-2 text-[10px] text-muted-foreground italic">
+                    Sin reglas manuales.
+                </p>
             </div>
 
-            <!-- Node config: groups first, then the list of nodes. -->
-            <p class="text-sm font-medium">Configuración de nodos</p>
-
-            <NodeGroupsPanel :building="building" />
+            <!-- Node config: groups are the accordion sections; each one can be
+                 renamed or deleted from its header, and new groups are created
+                 here. Nodes are assigned to a group from each node card. -->
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium">Configuración de nodos</p>
+                <Button size="sm" variant="outline" @click="openCreateGroup">
+                    <Plus class="mr-1 h-4 w-4" />
+                    Agregar grupo
+                </Button>
+            </div>
 
             <div
                 class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
@@ -2059,8 +2197,8 @@ defineExpose({
                     primero.
                 </p>
                 <Accordion
+                    v-model="openSections"
                     type="multiple"
-                    :default-value="defaultOpenSections"
                     class="w-full space-y-1"
                 >
                     <AccordionItem
@@ -2069,28 +2207,56 @@ defineExpose({
                         :value="groupKey(section.id)"
                         class="border-none"
                     >
-                        <AccordionTrigger
-                            class="rounded px-1 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:no-underline"
-                        >
-                            <span
-                                class="flex flex-1 items-center gap-2 truncate"
+                        <div class="flex items-center">
+                            <AccordionTrigger
+                                class="flex-1 rounded px-1 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:no-underline"
                             >
-                                <span class="truncate">{{ section.name }}</span>
                                 <span
-                                    class="text-[10px] text-muted-foreground/70"
+                                    class="flex flex-1 items-center gap-2 truncate"
                                 >
-                                    {{ section.nodes.length }}
+                                    <span class="truncate">
+                                        {{ section.name }}
+                                    </span>
+                                    <span
+                                        class="text-[10px] text-muted-foreground/70"
+                                    >
+                                        {{ section.nodes.length }}
+                                    </span>
                                 </span>
-                            </span>
-                        </AccordionTrigger>
+                            </AccordionTrigger>
+                            <!-- Real groups can be renamed/deleted; the virtual
+                                 "Sin grupo" section (id null) cannot. -->
+                            <div
+                                v-if="section.id !== null"
+                                class="flex items-center gap-0.5 pl-1"
+                            >
+                                <button
+                                    type="button"
+                                    class="text-muted-foreground hover:text-foreground"
+                                    title="Editar grupo"
+                                    @click="
+                                        openEditGroup(section.id, section.name)
+                                    "
+                                >
+                                    <Pencil class="size-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="text-destructive hover:opacity-70"
+                                    title="Eliminar grupo"
+                                    @click="
+                                        destroyGroup(section.id, section.name)
+                                    "
+                                >
+                                    <Trash2 class="size-3.5" />
+                                </button>
+                            </div>
+                        </div>
                         <AccordionContent class="pb-0">
                             <div class="flex flex-col gap-2">
                                 <div
                                     v-for="node in section.nodes"
                                     :key="node.localId"
-                                    :ref="
-                                        (el) => registerCard(node.localId, el)
-                                    "
                                     class="cursor-pointer rounded-md border p-2 text-xs"
                                     :class="
                                         node.localId === selectedId
@@ -2225,7 +2391,11 @@ defineExpose({
                                         </label>
                                     </div>
 
-                                    <!-- Group assignment: pick the node's group (or none). -->
+                                    <!-- Group assignment: a native select is used
+                                         instead of the reka-ui one because a
+                                         section may render 100+ node cards at
+                                         once, and 100+ heavy selects are slow to
+                                         mount. -->
                                     <div
                                         v-if="nodeGroups.length"
                                         class="mt-2 flex items-center gap-2 text-[11px]"
@@ -2234,41 +2404,34 @@ defineExpose({
                                         <span class="text-muted-foreground"
                                             >Grupo</span
                                         >
-                                        <Select
-                                            :model-value="
+                                        <select
+                                            class="h-6 flex-1 rounded border bg-background px-1 text-[11px]"
+                                            :value="
                                                 node.node_group_id
                                                     ? String(node.node_group_id)
                                                     : NO_GROUP
                                             "
-                                            @update:model-value="
+                                            @click.stop
+                                            @change="
                                                 setNodeGroup(
                                                     node.localId,
-                                                    String($event),
+                                                    (
+                                                        $event.target as HTMLSelectElement
+                                                    ).value,
                                                 )
                                             "
                                         >
-                                            <SelectTrigger
-                                                size="sm"
-                                                class="!h-6 flex-1 !py-0 text-[11px]"
-                                                @click.stop
+                                            <option :value="NO_GROUP">
+                                                Sin grupo
+                                            </option>
+                                            <option
+                                                v-for="group in nodeGroups"
+                                                :key="group.id"
+                                                :value="String(group.id)"
                                             >
-                                                <SelectValue
-                                                    placeholder="Sin grupo"
-                                                />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem :value="NO_GROUP">
-                                                    Sin grupo
-                                                </SelectItem>
-                                                <SelectItem
-                                                    v-for="group in nodeGroups"
-                                                    :key="group.id"
-                                                    :value="String(group.id)"
-                                                >
-                                                    {{ group.name }}
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                                {{ group.name }}
+                                            </option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -2278,4 +2441,47 @@ defineExpose({
             </div>
         </div>
     </div>
+
+    <!-- Group create/edit dialog, opened from the node accordion. -->
+    <Dialog v-model:open="groupDialogOpen">
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>
+                    {{
+                        editingGroupId !== null
+                            ? 'Editar grupo'
+                            : 'Agregar grupo'
+                    }}
+                </DialogTitle>
+                <DialogDescription>
+                    Ponle un nombre al grupo (ej. "Piso 1", "Sótano", "Zona A").
+                </DialogDescription>
+            </DialogHeader>
+
+            <form class="space-y-4" @submit.prevent="submitGroup">
+                <div class="grid gap-2">
+                    <Label>Nombre</Label>
+                    <Input
+                        v-model="groupForm.name"
+                        required
+                        placeholder="Ej. Primer piso"
+                    />
+                    <InputError :message="groupForm.errors.name" />
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        @click="groupDialogOpen = false"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button type="submit" :disabled="groupForm.processing">
+                        {{ editingGroupId !== null ? 'Guardar' : 'Agregar' }}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+    </Dialog>
 </template>
