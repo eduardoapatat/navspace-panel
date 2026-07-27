@@ -47,7 +47,11 @@ defineOptions({
         <div class="flex shrink-0 items-center justify-between">
             <div class="flex items-center gap-3">
                 <Button variant="outline" size="icon" as-child>
-                    <Link :href="buildingsEdit(building.id)">
+                    <Link
+                        :href="buildingsEdit(building.id)"
+                        title="Volver a la gestión del edificio"
+                        aria-label="Volver a la gestión del edificio"
+                    >
                         <ArrowLeft class="h-4 w-4" />
                     </Link>
                 </Button>

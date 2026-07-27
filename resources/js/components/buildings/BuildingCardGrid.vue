@@ -186,7 +186,16 @@ const table = useVueTable({
                     variant="outline"
                     size="icon"
                     class="h-9 w-9"
-                    :title="sortDesc ? 'Descendente' : 'Ascendente'"
+                    :title="
+                        sortDesc
+                            ? 'Orden descendente'
+                            : 'Orden ascendente'
+                    "
+                    :aria-label="
+                        sortDesc
+                            ? 'Orden descendente'
+                            : 'Orden ascendente'
+                    "
                     @click="toggleDirection"
                 >
                     <ArrowDownAZ v-if="sortDesc" class="h-4 w-4" />

@@ -196,6 +196,7 @@ defineOptions({
                                         type="button"
                                         variant="ghost"
                                         size="icon"
+                                        title="Quitar foto actual"
                                         class="h-8 w-8 text-destructive"
                                         @click="removeImage = true"
                                     >
@@ -273,6 +274,7 @@ defineOptions({
                                             type="button"
                                             variant="ghost"
                                             size="icon"
+                                            title="Quitar modelo actual"
                                             class="h-8 w-8 text-destructive"
                                             @click="removeModel = true"
                                         >
