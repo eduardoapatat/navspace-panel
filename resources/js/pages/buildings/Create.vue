@@ -47,6 +47,36 @@ function handleImageChange(event: Event): void {
     }
 }
 
+// Basic information shown for the selected building model.
+const selectedModel = ref<{
+    name: string;
+    size: string;
+} | null>(null);
+
+function formatFileSize(bytes: number): string {
+    const megabytes = bytes / (1024 * 1024);
+
+    if (megabytes >= 1) {
+        return `${megabytes.toFixed(2)} MB`;
+    }
+
+    const kilobytes = bytes / 1024;
+
+    return `${kilobytes.toFixed(1)} KB`;
+}
+
+function handleModelChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    selectedModel.value = file
+        ? {
+              name: file.name,
+              size: formatFileSize(file.size),
+          }
+        : null;
+}
+
 onBeforeUnmount(clearImagePreview);
 </script>
 
@@ -110,7 +140,23 @@ onBeforeUnmount(clearImagePreview);
 
             <div class="grid gap-2">
                 <Label for="model">Modelo 3D (.glb)</Label>
-                <Input id="model" name="model" type="file" accept=".glb" />
+                <Input id="model" name="model" type="file" accept=".glb" @change="handleModelChange" />
+                <div
+                    v-if="selectedModel"
+                    class="rounded-md border bg-muted/40 p-3"
+                >
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Modelo seleccionado
+                    </p>
+
+                    <p class="mt-1 break-all text-sm font-medium">
+                        {{ selectedModel.name }}
+                    </p>
+
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        {{ selectedModel.size }}
+                    </p>
+                </div>
                 <p class="text-xs text-muted-foreground">
                     Opcional. Archivo .glb del edificio, máximo 50 MB.
                 </p>
