@@ -99,6 +99,16 @@ const selectedId = ref<number | null>(null);
 // The node whose name is being edited inline (via the pencil button).
 const editingLabelId = ref<number | null>(null);
 
+// Prevents closing or reloading the editor while local changes are pending.
+function handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!dirty.value) {
+        return;
+    }
+
+    event.preventDefault();
+    event.returnValue = '';
+}
+
 // Enter/leave inline name editing for a node.
 function startEditingLabel(id: number): void {
     editingLabelId.value = id;
@@ -1671,10 +1681,26 @@ function isTypingInField(event: KeyboardEvent): boolean {
     return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
 }
 
-// Keyboard: Alt enables orbit on left button (Unity style), W/E/R switch gizmo
-// mode, Delete removes the selected node, Escape leaves focus mode.
+// Keyboard: Ctrl/Cmd+S saves, Alt enables orbit on left button (Unity style),
+// W/E/R switch gizmo mode, Delete removes the selected node, and Escape leaves
+// focus mode.
 function onKeyDown(event: KeyboardEvent): void {
-    // Ignore shortcuts while typing in an input (coordinate fields, params).
+    const isSaveShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === 's';
+
+    if (isSaveShortcut) {
+        // Prevents the browser from opening its "Save page" dialog.
+        event.preventDefault();
+
+        if (!event.repeat && dirty.value && !saving.value) {
+            save();
+        }
+
+        return;
+    }
+
+    // Ignore the remaining shortcuts while typing in an input.
     if (isTypingInField(event)) {
         return;
     }
@@ -1727,6 +1753,7 @@ function animate(): void {
 }
 
 onMounted(() => {
+    window.addEventListener('beforeunload', handleBeforeUnload);
     initScene();
     loadModel();
     renderNodes();
@@ -1735,6 +1762,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
     cancelAnimationFrame(animationId);
 
     if (graphTimer !== null) {
