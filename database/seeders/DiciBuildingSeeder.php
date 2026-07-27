@@ -49,8 +49,8 @@ class DiciBuildingSeeder extends Seeder
             2 => 'Segundo Piso Alumnos',
             3 => 'Segundo Piso Académicos',
             4 => 'Tercer Piso Alumnos',
-            5 => 'Primer Piso Academicos',
-            6 => 'Piso Subterraneo',
+            5 => 'Primer Piso Académicos',
+            6 => 'Piso Subterráneo',
         ];
         $groups = [];
         foreach ($groupNames as $oldId => $name) {
@@ -61,7 +61,7 @@ class DiciBuildingSeeder extends Seeder
         $spaceTypeNames = [
             1 => 'Salas',
             2 => 'Oficinas',
-            3 => 'Admnistración',
+            3 => 'Administración',
             4 => 'Servicios',
         ];
         $spaceTypes = [];
@@ -1569,13 +1569,13 @@ class DiciBuildingSeeder extends Seeder
                 'node_id' => 56,
             ],
             12 => [
-                'display_name' => 'Oficina Pedro Sáchez',
+                'display_name' => 'Oficina Pedro Sánchez',
                 'description' => 'Profesor de asignatura:
 - Taller de Programación I',
                 'type' => 'attention',
                 'schedule_file' => null,
                 'schedule_text' => 'Lunes - Viernes 8:00 - 17:55',
-                'responsible_name' => 'Pedro Sáchez',
+                'responsible_name' => 'Pedro Sánchez',
                 'responsible_phone' => 'Número desconocido',
                 'responsible_email' => 'psanchez@academicos.uta.cl',
                 'responsible_photo' => 'responsibles/Tby26Ju8alXmaY9G2mnBZoXaKmxIg8yus0vP9nLN.jpg',
