@@ -19,6 +19,11 @@ defineProps<Props>();
 // Reference to the editor so the header's Save button can drive its save state.
 const editor = ref<InstanceType<typeof NodeEditor> | null>(null);
 
+// Formats the number of nodes shown in the editor header.
+function nodeCountLabel(count: number): string {
+    return count === 1 ? '1 nodo' : `${count} nodos`;
+}
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -57,6 +62,11 @@ defineOptions({
             </div>
 
             <div class="flex items-center gap-3">
+                <span
+                    class="rounded bg-muted px-2 py-1 text-xs text-muted-foreground"
+                >
+                    {{ nodeCountLabel(editor?.nodeCount ?? 0) }}
+                </span>
                 <span
                     v-if="editor?.dirty"
                     class="rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-600"

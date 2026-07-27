@@ -1809,6 +1809,9 @@ defineExpose({
     get saving() {
         return saving.value;
     },
+    get nodeCount() {
+        return localNodes.value.length;
+    },
 });
 </script>
 
