@@ -52,6 +52,7 @@ class DiciBuildingSeeder extends Seeder
             5 => 'Primer Piso Académicos',
             6 => 'Piso Subterráneo',
         ];
+        /** @var array<int, int> $groups */
         $groups = [];
         foreach ($groupNames as $oldId => $name) {
             $groups[$oldId] = $building->nodeGroups()->create(['name' => $name])->id;
@@ -64,6 +65,7 @@ class DiciBuildingSeeder extends Seeder
             3 => 'Administración',
             4 => 'Servicios',
         ];
+        /** @var array<int, int> $spaceTypes */
         $spaceTypes = [];
         foreach ($spaceTypeNames as $oldId => $name) {
             $spaceTypes[$oldId] = $building->spaceTypes()->create(['name' => $name])->id;
@@ -1372,6 +1374,7 @@ class DiciBuildingSeeder extends Seeder
                 'group' => 5,
             ],
         ];
+        /** @var array<int, int> $nodes */
         $nodes = [];
         foreach ($nodeData as $row) {
             $nodes[$row['id']] = $building->nodes()->create([
@@ -1678,6 +1681,19 @@ class DiciBuildingSeeder extends Seeder
                 'responsible_photo' => null,
                 'space_type_id' => 3,
                 'node_id' => 110,
+            ],
+            20 => [
+                'display_name' => 'Auditorio',
+                'description' => 'Espacio destinado a la realización de conferencias, seminarios, ceremonias, presentaciones y actividades académicas, equipado con asientos para el público.',
+                'type' => 'academic',
+                'schedule_file' => null,
+                'schedule_text' => null,
+                'responsible_name' => null,
+                'responsible_phone' => null,
+                'responsible_email' => null,
+                'responsible_photo' => null,
+                'space_type_id' => 3,
+                'node_id' => 128,
             ],
         ];
         foreach ($destData as $d) {
