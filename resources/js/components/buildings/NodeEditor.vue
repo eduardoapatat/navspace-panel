@@ -563,7 +563,8 @@ function initScene(): void {
     // updateStyle=false: don't write inline px sizes on the canvas, so it can
     // shrink back via CSS (w-full/h-full) when leaving fullscreen.
     renderer.value.setSize(width, height, false);
-    renderer.value.setPixelRatio(window.devicePixelRatio);
+    // Caps the rendering density to avoid unnecessary GPU load on high-DPI screens.
+renderer.value.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     host.appendChild(renderer.value.domElement);
 
     // Stop the browser from hijacking Alt+drag / right-click on the canvas,
